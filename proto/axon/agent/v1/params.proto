@@ -1,0 +1,18 @@
+syntax = "proto3";
+package axon.agent.v1;
+
+option go_package = "github.com/axon-chain/axon/x/agent/types";
+
+import "gogoproto/gogo.proto";
+
+message Params {
+  uint64 min_register_stake = 1;
+  uint64 register_burn_amount = 2;
+  uint64 contract_deploy_burn = 3;
+  uint64 initial_reputation = 4;
+  uint64 max_reputation = 5;
+  int64 heartbeat_interval = 6;
+  int64 heartbeat_timeout = 7;
+  uint64 epoch_length = 8;
+  int64 ai_challenge_window = 9;
+}

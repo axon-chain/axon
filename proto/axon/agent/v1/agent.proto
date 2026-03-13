@@ -1,0 +1,44 @@
+syntax = "proto3";
+package axon.agent.v1;
+
+option go_package = "github.com/axon-chain/axon/x/agent/types";
+
+import "cosmos/base/v1beta1/coin.proto";
+import "gogoproto/gogo.proto";
+
+enum AgentStatus {
+  AGENT_STATUS_UNSPECIFIED = 0;
+  AGENT_STATUS_ONLINE = 1;
+  AGENT_STATUS_OFFLINE = 2;
+  AGENT_STATUS_SUSPENDED = 3;
+}
+
+message Agent {
+  string address = 1;
+  string agent_id = 2;
+  repeated string capabilities = 3;
+  string model = 4;
+  uint64 reputation = 5;
+  AgentStatus status = 6;
+  cosmos.base.v1beta1.Coin stake_amount = 7 [(gogoproto.nullable) = false];
+  int64 registered_at = 8;
+  int64 last_heartbeat = 9;
+  cosmos.base.v1beta1.Coin burned_at_register = 10 [(gogoproto.nullable) = false];
+}
+
+message AIChallenge {
+  uint64 epoch = 1;
+  string challenge_hash = 2;
+  string challenge_type = 3;
+  string challenge_data = 4;
+  int64 deadline_block = 5;
+}
+
+message AIResponse {
+  string validator_address = 1;
+  uint64 epoch = 2;
+  string commit_hash = 3;
+  string reveal_data = 4;
+  int64 score = 5;
+  bool evaluated = 6;
+}

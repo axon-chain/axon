@@ -1,0 +1,13 @@
+syntax = "proto3";
+package axon.agent.v1;
+
+option go_package = "github.com/axon-chain/axon/x/agent/types";
+
+import "axon/agent/v1/agent.proto";
+import "axon/agent/v1/params.proto";
+import "gogoproto/gogo.proto";
+
+message GenesisState {
+  Params params = 1 [(gogoproto.nullable) = false];
+  repeated Agent agents = 2 [(gogoproto.nullable) = false];
+}

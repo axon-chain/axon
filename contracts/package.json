@@ -1,0 +1,15 @@
+{
+  "name": "axon-contracts",
+  "version": "0.2.0",
+  "description": "Axon chain Solidity contracts and tests",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test --network axon",
+    "deploy:erc20": "hardhat run scripts/deploy_erc20.js --network axon",
+    "deploy:examples": "hardhat run scripts/deploy_examples.js --network axon"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "hardhat": "^2.19.0"
+  }
+}

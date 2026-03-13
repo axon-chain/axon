@@ -1,0 +1,24 @@
+package types
+
+import "cosmossdk.io/errors"
+
+var (
+	ErrAgentAlreadyRegistered     = errors.Register(ModuleName, 1100, "agent already registered")
+	ErrAgentNotFound              = errors.Register(ModuleName, 1101, "agent not found")
+	ErrInsufficientStake          = errors.Register(ModuleName, 1102, "insufficient stake amount")
+	ErrAgentSuspended             = errors.Register(ModuleName, 1103, "agent is suspended")
+	ErrHeartbeatTooFrequent       = errors.Register(ModuleName, 1104, "heartbeat sent too frequently")
+	ErrChallengeNotActive         = errors.Register(ModuleName, 1105, "no active AI challenge")
+	ErrChallengeExpired           = errors.Register(ModuleName, 1106, "AI challenge submission window expired")
+	ErrAlreadySubmitted           = errors.Register(ModuleName, 1107, "already submitted response for this epoch")
+	ErrInvalidReveal              = errors.Register(ModuleName, 1108, "reveal does not match commit hash")
+	ErrReputationTooLow           = errors.Register(ModuleName, 1109, "reputation below minimum threshold")
+	ErrDeregisterCooldown         = errors.Register(ModuleName, 1110, "agent in deregister cooldown period")
+	ErrDeregisterAlreadyQueued    = errors.Register(ModuleName, 1111, "deregister already requested")
+	ErrChallengeWindowClosed      = errors.Register(ModuleName, 1112, "challenge submission window closed")
+	ErrAgentOffline               = errors.Register(ModuleName, 1113, "agent is offline")
+	ErrRevealTooEarly             = errors.Register(ModuleName, 1114, "reveal phase has not started yet")
+	ErrRevealWindowClosed         = errors.Register(ModuleName, 1115, "reveal window has closed")
+	ErrAlreadyEvaluated           = errors.Register(ModuleName, 1116, "challenge already evaluated")
+	ErrDailyRegisterLimitExceeded = errors.Register(ModuleName, 1117, "daily registration limit exceeded (max 3 per address per day)")
+)

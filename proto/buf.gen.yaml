@@ -1,0 +1,12 @@
+version: v2
+plugins:
+  - local: protoc-gen-gogo
+    out: ../x/agent/types
+    opt:
+      - Mgoogle/protobuf/any.proto=github.com/cosmos/gogoproto/types
+      - Mcosmos/base/v1beta1/coin.proto=github.com/cosmos/cosmos-sdk/types
+      - Mcosmos/msg/v1/msg.proto=github.com/cosmos/cosmos-sdk/types/msgservice
+  - local: protoc-gen-go-grpc
+    out: ../x/agent/types
+    opt:
+      - paths=source_relative

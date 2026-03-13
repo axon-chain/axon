@@ -1,0 +1,62 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version tag, for example v1.0.0"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME}"
+          fi
+          echo "version=${VERSION}" >>"${GITHUB_OUTPUT}"
+
+      - name: Build release matrix
+        shell: bash
+        run: |
+          bash packaging/build_release_matrix.sh \
+            --version "${{ steps.version.outputs.version }}" \
+            --notes CHANGELOG.md
+
+      - name: Upload release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ steps.version.outputs.version }}
+          path: dist/releases/${{ steps.version.outputs.version }}/
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            dist/releases/${{ steps.version.outputs.version }}/*.tar.gz
+            dist/releases/${{ steps.version.outputs.version }}/*.zip
+            dist/releases/${{ steps.version.outputs.version }}/SHA256SUMS
+            dist/releases/${{ steps.version.outputs.version }}/BUILD_REPORT.md

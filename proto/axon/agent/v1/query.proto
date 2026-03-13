@@ -1,0 +1,65 @@
+syntax = "proto3";
+package axon.agent.v1;
+
+option go_package = "github.com/axon-chain/axon/x/agent/types";
+
+import "google/api/annotations.proto";
+import "axon/agent/v1/agent.proto";
+import "axon/agent/v1/params.proto";
+import "gogoproto/gogo.proto";
+
+service Query {
+  rpc Params(QueryParamsRequest) returns (QueryParamsResponse) {
+    option (google.api.http).get = "/axon/agent/v1/params";
+  }
+
+  rpc Agent(QueryAgentRequest) returns (QueryAgentResponse) {
+    option (google.api.http).get = "/axon/agent/v1/agent/{address}";
+  }
+
+  rpc Agents(QueryAgentsRequest) returns (QueryAgentsResponse) {
+    option (google.api.http).get = "/axon/agent/v1/agents";
+  }
+
+  rpc Reputation(QueryReputationRequest) returns (QueryReputationResponse) {
+    option (google.api.http).get = "/axon/agent/v1/reputation/{address}";
+  }
+
+  rpc CurrentChallenge(QueryCurrentChallengeRequest) returns (QueryCurrentChallengeResponse) {
+    option (google.api.http).get = "/axon/agent/v1/challenge/current";
+  }
+}
+
+message QueryParamsRequest {}
+
+message QueryParamsResponse {
+  Params params = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryAgentRequest {
+  string address = 1;
+}
+
+message QueryAgentResponse {
+  Agent agent = 1;
+}
+
+message QueryAgentsRequest {}
+
+message QueryAgentsResponse {
+  repeated Agent agents = 1 [(gogoproto.nullable) = false];
+}
+
+message QueryReputationRequest {
+  string address = 1;
+}
+
+message QueryReputationResponse {
+  uint64 reputation = 1;
+}
+
+message QueryCurrentChallengeRequest {}
+
+message QueryCurrentChallengeResponse {
+  AIChallenge challenge = 1;
+}

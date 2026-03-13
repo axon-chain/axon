@@ -1,0 +1,121 @@
+package app
+
+import (
+	"errors"
+	"fmt"
+
+	evmmempool "github.com/cosmos/evm/mempool"
+	"github.com/cosmos/evm/server"
+	evmtypes "github.com/cosmos/evm/x/vm/types"
+
+	"cosmossdk.io/log/v2"
+
+	abci "github.com/cometbft/cometbft/abci/types"
+	"github.com/cosmos/cosmos-sdk/baseapp"
+	servertypes "github.com/cosmos/cosmos-sdk/server/types"
+	sdk "github.com/cosmos/cosmos-sdk/types"
+	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
+)
+
+const mempoolOperateExclusively = true
+
+func (app *AxonApp) configureEVMMempool(appOpts servertypes.AppOptions, logger log.Logger) error {
+	if evmtypes.GetChainConfig() == nil {
+		logger.Debug("evm chain config is not set, skipping mempool configuration")
+		return nil
+	}
+
+	cosmosPoolMaxTx := server.GetCosmosPoolMaxTx(appOpts, logger)
+	if cosmosPoolMaxTx < 0 {
+		logger.Debug("app-side mempool is disabled, skipping evm mempool configuration")
+		return nil
+	}
+
+	mempoolConfig, err := app.createMempoolConfig(appOpts, logger)
+	if err != nil {
+		return fmt.Errorf("failed to get mempool config: %w", err)
+	}
+
+	txEncoder := evmmempool.NewTxEncoder(app.txConfig)
+	evmRechecker := evmmempool.NewTxRechecker(mempoolConfig.AnteHandler, txEncoder)
+	cosmosRechecker := evmmempool.NewTxRechecker(mempoolConfig.AnteHandler, txEncoder)
+
+	evmMempool := evmmempool.NewExperimentalEVMMempool(
+		app.CreateQueryContext,
+		logger,
+		app.EVMKeeper,
+		app.FeeMarketKeeper,
+		app.txConfig,
+		txEncoder,
+		evmRechecker,
+		cosmosRechecker,
+		mempoolConfig,
+		cosmosPoolMaxTx,
+	)
+	app.EVMMempool = evmMempool
+	app.SetMempool(evmMempool)
+	checkTxHandler := evmmempool.NewCheckTxHandler(evmMempool)
+	app.SetCheckTxHandler(checkTxHandler)
+	app.SetInsertTxHandler(app.NewInsertTxHandler(evmMempool))
+	app.SetReapTxsHandler(app.NewReapTxsHandler(evmMempool))
+
+	txVerifier := NewNoCheckProposalTxVerifier(app.BaseApp)
+	abciProposalHandler := baseapp.NewDefaultProposalHandler(evmMempool, txVerifier)
+	abciProposalHandler.SetSignerExtractionAdapter(
+		evmmempool.NewEthSignerExtractionAdapter(
+			sdkmempool.NewDefaultSignerExtractionAdapter(),
+		),
+	)
+	app.SetPrepareProposal(abciProposalHandler.PrepareProposalHandler())
+
+	return nil
+}
+
+func (app *AxonApp) createMempoolConfig(appOpts servertypes.AppOptions, logger log.Logger) (*evmmempool.EVMMempoolConfig, error) {
+	return &evmmempool.EVMMempoolConfig{
+		AnteHandler:              app.GetAnteHandler(),
+		LegacyPoolConfig:         server.GetLegacyPoolConfig(appOpts, logger),
+		BlockGasLimit:            server.GetBlockGasLimit(appOpts, logger),
+		MinTip:                   server.GetMinTip(appOpts, logger),
+		OperateExclusively:       mempoolOperateExclusively,
+		PendingTxProposalTimeout: server.GetPendingTxProposalTimeout(appOpts, logger),
+		InsertQueueSize:          server.GetMempoolInsertQueueSize(appOpts, logger),
+	}, nil
+}
+
+const CodeTypeNoRetry = 1
+
+func (app *AxonApp) NewInsertTxHandler(evmMempool *evmmempool.ExperimentalEVMMempool) sdk.InsertTxHandler {
+	return func(req *abci.RequestInsertTx) (*abci.ResponseInsertTx, error) {
+		txBytes := req.GetTx()
+
+		tx, err := app.TxDecode(txBytes)
+		if err != nil {
+			return nil, fmt.Errorf("decoding tx: %w", err)
+		}
+
+		ctx := app.GetContextForCheckTx(txBytes)
+
+		code := abci.CodeTypeOK
+		if err := evmMempool.InsertAsync(ctx, tx); err != nil {
+			switch {
+			case errors.Is(err, evmmempool.ErrQueueFull):
+				code = abci.CodeTypeRetry
+			default:
+				code = CodeTypeNoRetry
+			}
+		}
+		return &abci.ResponseInsertTx{Code: code}, nil
+	}
+}
+
+func (app *AxonApp) NewReapTxsHandler(evmMempool *evmmempool.ExperimentalEVMMempool) sdk.ReapTxsHandler {
+	return func(req *abci.RequestReapTxs) (*abci.ResponseReapTxs, error) {
+		maxBytes, maxGas := req.GetMaxBytes(), req.GetMaxGas()
+		txs, err := evmMempool.ReapNewValidTxs(maxBytes, maxGas)
+		if err != nil {
+			return nil, fmt.Errorf("reaping new valid txs: %w", err)
+		}
+		return &abci.ResponseReapTxs{Txs: txs}, nil
+	}
+}

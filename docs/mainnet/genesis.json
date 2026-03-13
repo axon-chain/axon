@@ -1,0 +1,406 @@
+{
+  "app_name": "axond",
+  "app_version": "v1.0.0",
+  "genesis_time": "2026-03-13T12:58:10.911058987Z",
+  "chain_id": "axon_8210-1",
+  "initial_height": 1,
+  "app_hash": null,
+  "app_state": {
+    "07-tendermint": null,
+    "agent": {
+      "params": {
+        "min_register_stake": 100,
+        "register_burn_amount": 20,
+        "contract_deploy_burn": "10",
+        "initial_reputation": "10",
+        "max_reputation": 100,
+        "heartbeat_interval": "100",
+        "heartbeat_timeout": 720,
+        "epoch_length": 720,
+        "ai_challenge_window": 50
+      },
+      "agents": []
+    },
+    "auth": {
+      "params": {
+        "max_memo_characters": "256",
+        "tx_sig_limit": "7",
+        "tx_size_cost_per_byte": "10",
+        "sig_verify_cost_ed25519": "590",
+        "sig_verify_cost_secp256k1": "1000"
+      },
+      "accounts": [
+        {
+          "@type": "/cosmos.auth.v1beta1.BaseAccount",
+          "address": "axon1qa846k33rku69lg4vzrxrdyztv8vcke99geg7w",
+          "pub_key": null,
+          "account_number": "0",
+          "sequence": "0"
+        }
+      ]
+    },
+    "authz": {
+      "authorization": []
+    },
+    "bank": {
+      "params": {
+        "send_enabled": [],
+        "default_send_enabled": true
+      },
+      "balances": [
+        {
+          "address": "axon1qa846k33rku69lg4vzrxrdyztv8vcke99geg7w",
+          "coins": [
+            {
+              "denom": "aaxon",
+              "amount": "11000000000000000000000"
+            }
+          ]
+        }
+      ],
+      "supply": [
+        {
+          "denom": "aaxon",
+          "amount": "11000000000000000000000"
+        }
+      ],
+      "denom_metadata": [
+        {
+          "description": "The native staking and gas token of the Axon network.",
+          "denom_units": [
+            {
+              "denom": "aaxon",
+              "exponent": 0,
+              "aliases": [
+                "attoaxon"
+              ]
+            },
+            {
+              "denom": "naxon",
+              "exponent": 9,
+              "aliases": [
+                "nanoaxon"
+              ]
+            },
+            {
+              "denom": "axon",
+              "exponent": 18,
+              "aliases": [
+                "AXON"
+              ]
+            }
+          ],
+          "base": "aaxon",
+          "display": "axon",
+          "name": "Axon",
+          "symbol": "AXON",
+          "uri": "",
+          "uri_hash": ""
+        }
+      ],
+      "send_enabled": []
+    },
+    "consensus": null,
+    "distribution": {
+      "params": {
+        "community_tax": "0.000000000000000000",
+        "base_proposer_reward": "0.000000000000000000",
+        "bonus_proposer_reward": "0.000000000000000000",
+        "withdraw_addr_enabled": true
+      },
+      "fee_pool": {
+        "community_pool": []
+      },
+      "delegator_withdraw_infos": [],
+      "previous_proposer": "",
+      "outstanding_rewards": [],
+      "validator_accumulated_commissions": [],
+      "validator_historical_rewards": [],
+      "validator_current_rewards": [],
+      "delegator_starting_infos": [],
+      "validator_slash_events": []
+    },
+    "erc20": {
+      "params": {
+        "enable_erc20": true,
+        "permissionless_registration": true
+      },
+      "token_pairs": [],
+      "allowances": [],
+      "native_precompiles": [],
+      "dynamic_precompiles": []
+    },
+    "evidence": {
+      "evidence": []
+    },
+    "evm": {
+      "accounts": [],
+      "params": {
+        "evm_denom": "aaxon",
+        "extra_eips": [],
+        "evm_channels": [],
+        "access_control": {
+          "create": {
+            "access_type": "ACCESS_TYPE_PERMISSIONLESS",
+            "access_control_list": []
+          },
+          "call": {
+            "access_type": "ACCESS_TYPE_PERMISSIONLESS",
+            "access_control_list": []
+          }
+        },
+        "active_static_precompiles": [
+          "0x0000000000000000000000000000000000000801",
+          "0x0000000000000000000000000000000000000802",
+          "0x0000000000000000000000000000000000000803"
+        ],
+        "history_serve_window": "8192",
+        "extended_denom_options": {
+          "extended_denom": "aaxon"
+        }
+      },
+      "preinstalls": []
+    },
+    "feegrant": {
+      "allowances": []
+    },
+    "feemarket": {
+      "params": {
+        "no_base_fee": false,
+        "base_fee_change_denominator": 8,
+        "elasticity_multiplier": 2,
+        "enable_height": "0",
+        "base_fee": "1000000000",
+        "min_gas_price": "0.000000000000000000",
+        "min_gas_multiplier": "0.500000000000000000"
+      },
+      "block_gas": "0"
+    },
+    "genutil": {
+      "gen_txs": [
+        {
+          "body": {
+            "messages": [
+              {
+                "@type": "/cosmos.staking.v1beta1.MsgCreateValidator",
+                "description": {
+                  "moniker": "axon-validator-node",
+                  "identity": "",
+                  "website": "",
+                  "security_contact": "",
+                  "details": ""
+                },
+                "commission": {
+                  "rate": "0.100000000000000000",
+                  "max_rate": "0.200000000000000000",
+                  "max_change_rate": "0.010000000000000000"
+                },
+                "min_self_delegation": "1",
+                "delegator_address": "",
+                "validator_address": "axonvaloper1qa846k33rku69lg4vzrxrdyztv8vcke9mmatay",
+                "pubkey": {
+                  "@type": "/cosmos.crypto.ed25519.PubKey",
+                  "key": "yhj/OlE2kGSbG+atqSYYlyA6Q1DZmr+hVTb4CvWG/cA="
+                },
+                "value": {
+                  "denom": "aaxon",
+                  "amount": "10000000000000000000000"
+                }
+              }
+            ],
+            "memo": "86cbe218252518cf171d68b540758bbc2faeb27d@172.18.0.2:26656",
+            "timeout_height": "0",
+            "unordered": false,
+            "timeout_timestamp": null,
+            "extension_options": [],
+            "non_critical_extension_options": []
+          },
+          "auth_info": {
+            "signer_infos": [
+              {
+                "public_key": {
+                  "@type": "/cosmos.evm.crypto.v1.ethsecp256k1.PubKey",
+                  "key": "AtQzH6h8K16mDHT+gxS9YK0cGTdRZiHhwLokzfftHPBe"
+                },
+                "mode_info": {
+                  "single": {
+                    "mode": "SIGN_MODE_DIRECT"
+                  }
+                },
+                "sequence": "0"
+              }
+            ],
+            "fee": {
+              "amount": [],
+              "gas_limit": "200000",
+              "payer": "",
+              "granter": ""
+            },
+            "tip": null
+          },
+          "signatures": [
+            "G4c/qBk7+nag5ScrVAyifHS9ZSPSL5tFjwrBUVnC2EFcmKVFMOLiFFkZVB0j1VEvbbeIIQPzj4cqdPkcLNxiGAA="
+          ]
+        }
+      ]
+    },
+    "gov": {
+      "starting_proposal_id": "1",
+      "deposits": [],
+      "votes": [],
+      "proposals": [],
+      "deposit_params": null,
+      "voting_params": null,
+      "tally_params": null,
+      "params": {
+        "min_deposit": [
+          {
+            "denom": "aaxon",
+            "amount": "10000000000000000000000"
+          }
+        ],
+        "max_deposit_period": "172800s",
+        "voting_period": "604800s",
+        "quorum": "0.334000000000000000",
+        "threshold": "0.500000000000000000",
+        "veto_threshold": "0.334000000000000000",
+        "min_initial_deposit_ratio": "0.000000000000000000",
+        "proposal_cancel_ratio": "0.500000000000000000",
+        "proposal_cancel_dest": "",
+        "expedited_voting_period": "86400s",
+        "expedited_threshold": "0.667000000000000000",
+        "expedited_min_deposit": [
+          {
+            "denom": "stake",
+            "amount": "50000000"
+          }
+        ],
+        "burn_vote_quorum": false,
+        "burn_proposal_deposit_prevote": false,
+        "burn_vote_veto": true,
+        "min_deposit_ratio": "0.010000000000000000"
+      },
+      "constitution": ""
+    },
+    "ibc": {
+      "client_genesis": {
+        "clients": [],
+        "clients_consensus": [],
+        "clients_metadata": [],
+        "params": {
+          "allowed_clients": [
+            "*"
+          ]
+        },
+        "create_localhost": false,
+        "next_client_sequence": "0"
+      },
+      "connection_genesis": {
+        "connections": [],
+        "client_connection_paths": [],
+        "next_connection_sequence": "0",
+        "params": {
+          "max_expected_time_per_block": "30000000000"
+        }
+      },
+      "channel_genesis": {
+        "channels": [],
+        "acknowledgements": [],
+        "commitments": [],
+        "receipts": [],
+        "send_sequences": [],
+        "recv_sequences": [],
+        "ack_sequences": [],
+        "next_channel_sequence": "0"
+      },
+      "client_v2_genesis": {
+        "counterparty_infos": []
+      },
+      "channel_v2_genesis": {
+        "acknowledgements": [],
+        "commitments": [],
+        "receipts": [],
+        "async_packets": [],
+        "send_sequences": []
+      }
+    },
+    "mint": {
+      "minter": {
+        "inflation": "0.000000000000000000",
+        "annual_provisions": "0.000000000000000000"
+      },
+      "params": {
+        "mint_denom": "aaxon",
+        "inflation_rate_change": "0.000000000000000000",
+        "inflation_max": "0.000000000000000000",
+        "inflation_min": "0.000000000000000000",
+        "goal_bonded": "0.670000000000000000",
+        "blocks_per_year": "6311520",
+        "max_supply": "0"
+      }
+    },
+    "slashing": {
+      "params": {
+        "signed_blocks_window": "10000",
+        "min_signed_per_window": "0.050000000000000000",
+        "downtime_jail_duration": "600s",
+        "slash_fraction_double_sign": "0.050000000000000000",
+        "slash_fraction_downtime": "0.001000000000000000"
+      },
+      "signing_infos": [],
+      "missed_blocks": []
+    },
+    "staking": {
+      "params": {
+        "unbonding_time": "1209600s",
+        "max_validators": 100,
+        "max_entries": 7,
+        "historical_entries": 10000,
+        "bond_denom": "aaxon",
+        "min_commission_rate": "0.050000000000000000"
+      },
+      "last_total_power": "0",
+      "last_validator_powers": [],
+      "validators": [],
+      "delegations": [],
+      "unbonding_delegations": [],
+      "redelegations": [],
+      "exported": false
+    },
+    "transfer": {
+      "port_id": "transfer",
+      "denoms": [],
+      "params": {
+        "send_enabled": true,
+        "receive_enabled": true
+      },
+      "total_escrowed": []
+    },
+    "upgrade": {},
+    "vesting": {}
+  },
+  "consensus": {
+    "params": {
+      "block": {
+        "max_bytes": "2097152",
+        "max_gas": "40000000"
+      },
+      "evidence": {
+        "max_age_num_blocks": "100000",
+        "max_age_duration": "172800000000000",
+        "max_bytes": "1048576"
+      },
+      "validator": {
+        "pub_key_types": [
+          "ed25519"
+        ]
+      },
+      "version": {
+        "app": "0"
+      },
+      "abci": {
+        "vote_extensions_enable_height": "0"
+      }
+    }
+  }
+}

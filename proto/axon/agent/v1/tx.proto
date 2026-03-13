@@ -1,0 +1,72 @@
+syntax = "proto3";
+package axon.agent.v1;
+
+option go_package = "github.com/axon-chain/axon/x/agent/types";
+
+import "cosmos/msg/v1/msg.proto";
+import "cosmos/base/v1beta1/coin.proto";
+import "gogoproto/gogo.proto";
+
+service Msg {
+  option (cosmos.msg.v1.service) = true;
+
+  rpc Register(MsgRegister) returns (MsgRegisterResponse);
+  rpc UpdateAgent(MsgUpdateAgent) returns (MsgUpdateAgentResponse);
+  rpc Heartbeat(MsgHeartbeat) returns (MsgHeartbeatResponse);
+  rpc Deregister(MsgDeregister) returns (MsgDeregisterResponse);
+  rpc SubmitAIChallengeResponse(MsgSubmitAIChallengeResponse) returns (MsgSubmitAIChallengeResponseResponse);
+  rpc RevealAIChallengeResponse(MsgRevealAIChallengeResponse) returns (MsgRevealAIChallengeResponseResponse);
+}
+
+message MsgRegister {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string capabilities = 2;
+  string model = 3;
+  cosmos.base.v1beta1.Coin stake = 4 [(gogoproto.nullable) = false];
+}
+
+message MsgRegisterResponse {
+  string agent_id = 1;
+}
+
+message MsgUpdateAgent {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string capabilities = 2;
+  string model = 3;
+}
+
+message MsgUpdateAgentResponse {}
+
+message MsgHeartbeat {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+}
+
+message MsgHeartbeatResponse {}
+
+message MsgDeregister {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+}
+
+message MsgDeregisterResponse {}
+
+message MsgSubmitAIChallengeResponse {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  uint64 epoch = 2;
+  string commit_hash = 3;
+}
+
+message MsgSubmitAIChallengeResponseResponse {}
+
+message MsgRevealAIChallengeResponse {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  uint64 epoch = 2;
+  string reveal_data = 3;
+}
+
+message MsgRevealAIChallengeResponseResponse {}

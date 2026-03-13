@@ -12,7 +12,7 @@ Axon 是一条面向 AI Agent 的通用公链，具备独立 L1 网络、完整 
 
 | 项目 | 值 |
 |------|-----|
-| Chain ID (Cosmos) | `axon_8210-1` |
+| Chain ID (EVM) | `9001` |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656` |
 | Bootstrap Peer | `65c18fb46f34cb0bd8430423491e5a36dea15aa2@mainnet-node.axonchain.ai:26656` |
@@ -28,6 +28,94 @@ Axon 是一条面向 AI Agent 的通用公链，具备独立 L1 网络、完整 
 - `CometBFT RPC`：仅给节点运维和 Cosmos/CometBFT 侧维护操作使用
 
 普通用户应连接 Axon 的 `EVM JSON-RPC`。`CometBFT RPC` 不属于面对钱包用户的公开接入信息。
+
+## MetaMask
+
+在 MetaMask 中添加 Axon 网络时使用以下参数：
+
+| 字段 | 值 |
+|------|----|
+| 网络名称 | `Axon` |
+| RPC URL | `https://mainnet-rpc.axonchain.ai/` |
+| Chain ID | `9001` |
+| 代币符号 | `AXON` |
+
+MetaMask 使用的是 EVM 网络标识，因此面向钱包用户的正确链 ID 是 `9001`。
+
+## 主网参数
+
+### 链基础参数
+
+| 参数 | 值 |
+|------|----|
+| Cosmos Chain ID | `axon_8210-1` |
+| EVM Chain ID | `9001` |
+| EVM 原生最小单位 | `aaxon` |
+| 对外显示代币 | `AXON` |
+| 初始供应量 | `0` |
+
+### 共识参数
+
+| 参数 | 值 |
+|------|----|
+| 区块 Gas 上限 | `40,000,000` |
+| 区块大小上限 | `2 MB` |
+| 目标出块时间 | `~5 秒` |
+
+### 质押参数
+
+| 参数 | 值 |
+|------|----|
+| 质押代币 | `aaxon` |
+| 解绑期 | `14 天` |
+| 最大验证者数量 | `100` |
+| 最低佣金率 | `5%` |
+
+### 惩罚参数
+
+| 参数 | 值 |
+|------|----|
+| 签名窗口 | `10,000` |
+| 窗口最低签名率 | `5%` |
+| 离线监禁时长 | `600 秒` |
+| 双签惩罚比例 | `5%` |
+| 离线惩罚比例 | `0.1%` |
+
+### 治理参数
+
+| 参数 | 值 |
+|------|----|
+| 最低提案押金 | `10,000 AXON` |
+| 押金期限 | `2 天` |
+| 投票期限 | `7 天` |
+| 法定人数 | `33.4%` |
+| 通过阈值 | `50%` |
+| 否决阈值 | `33.4%` |
+
+### 费用市场与铸币
+
+| 参数 | 值 |
+|------|----|
+| 启用基础费用 | `是` |
+| 初始基础费用 | `1 gwei` |
+| 通胀率 | `0%` |
+| 社区税 | `0%` |
+| 基础提议者奖励 | `0%` |
+| 额外提议者奖励 | `0%` |
+
+标准 mint 模块已禁用，代币发行由 Agent 模块的挖矿逻辑负责。
+
+### Agent 模块参数
+
+| 参数 | 值 |
+|------|----|
+| 最低注册质押 | `100 AXON` |
+| 注册销毁量 | `20 AXON` |
+| 最大信誉分 | `100` |
+| Epoch 长度 | `720 块（约 1 小时）` |
+| 心跳超时 | `720 块（约 1 小时）` |
+| AI 挑战窗口 | `50 块` |
+| 注销冷却期 | `120,960 块（约 7 天）` |
 
 ## 代码实现结构
 
@@ -66,7 +154,7 @@ make build
 将二进制安装到公开脚本默认路径：
 
 ```bash
-sudo install -m 0755 ./build/axond /usr/local/bin/axond
+install -m 0755 ./build/axond /usr/local/bin/axond
 ```
 
 运行测试：
@@ -144,14 +232,14 @@ shasum -a 256 axond_<version>_<os>_<arch>.tar.gz
 从仓库手动下载：
 
 ```bash
-sudo mkdir -p /opt/axon-node
+mkdir -p /opt/axon-node
 cd /opt/axon-node
 
-sudo curl -fsSLo start_validator_node.sh https://raw.githubusercontent.com/axon-chain/axon/main/scripts/start_validator_node.sh
-sudo curl -fsSLo start_sync_node.sh https://raw.githubusercontent.com/axon-chain/axon/main/scripts/start_sync_node.sh
-sudo curl -fsSLo genesis.json https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/genesis.json
-sudo curl -fsSLo bootstrap_peers.txt https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/bootstrap_peers.txt
-sudo chmod 0755 start_validator_node.sh start_sync_node.sh
+curl -fsSLo start_validator_node.sh https://raw.githubusercontent.com/axon-chain/axon/main/scripts/start_validator_node.sh
+curl -fsSLo start_sync_node.sh https://raw.githubusercontent.com/axon-chain/axon/main/scripts/start_sync_node.sh
+curl -fsSLo genesis.json https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/genesis.json
+curl -fsSLo bootstrap_peers.txt https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/bootstrap_peers.txt
+chmod 0755 start_validator_node.sh start_sync_node.sh
 ```
 
 本机直接执行：
@@ -207,6 +295,8 @@ docker run --rm -it \
 
 - 两个脚本都以脚本自身目录为基准解析 `axond`、`genesis.json`、`bootstrap_peers.txt` 和 `data/`
 - 如果 `./axond` 不存在，脚本会通过内置下载地址常量自动获取最新二进制
+- 普通仅出站连接的节点不要设置 `P2P_EXTERNAL_ADDRESS`，这样不会向其他节点广播本地不可解析的 hostname
+- 只有需要接受其他节点入站连接的公网节点，才设置 `P2P_EXTERNAL_ADDRESS=host:26656`
 - `./start_validator_node.sh init` 会生成验证者账户，并写入 `data/validator.mnemonic`、`data/validator.address`、`data/validator.valoper`、`data/validator.consensus_pubkey.json` 和 `data/peer_info.txt`
 - `./start_validator_node.sh create-validator` 需要账户已充值，并提供可访问的 `COMETBFT_RPC`，例如 `http://127.0.0.1:26657`
 - `./start_validator_node.sh start` 只负责启动本地验证者节点进程
@@ -266,7 +356,6 @@ await tx.wait();
 ## 补充资料
 
 - [白皮书](docs/whitepaper.md)
-- [主网参数](docs/MAINNET_PARAMS.md)
 - [安全审计](docs/SECURITY_AUDIT.md)
 
 ## License

@@ -11,6 +11,8 @@ Each script is self-contained and resolves paths relative to its own directory.
 - `genesis.json` is expected at `./genesis.json`
 - `bootstrap_peers.txt` is expected at `./bootstrap_peers.txt`
 - runtime data is stored under `./data/`
+- leave `P2P_EXTERNAL_ADDRESS` unset on ordinary outbound-only nodes to avoid advertising an unresolvable local hostname
+- set `P2P_EXTERNAL_ADDRESS=host:26656` only on publicly reachable nodes that should be dialed by other peers
 
 Validator-specific behavior:
 

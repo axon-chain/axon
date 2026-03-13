@@ -14,7 +14,7 @@ LOG_FILE="$DATA_DIR/node.log"
 CHAIN_ID="${CHAIN_ID:-axon_8210-1}"
 DENOM="${DENOM:-aaxon}"
 MIN_GAS_PRICES="${MIN_GAS_PRICES:-0${DENOM}}"
-P2P_HOST="${P2P_HOST:-$(hostname -f 2>/dev/null || hostname)}"
+P2P_EXTERNAL_ADDRESS="${P2P_EXTERNAL_ADDRESS:-}"
 P2P_PORT="${P2P_PORT:-26656}"
 RPC_PORT="${RPC_PORT:-26657}"
 JSON_RPC_ADDRESS="${JSON_RPC_ADDRESS:-0.0.0.0:8545}"
@@ -121,7 +121,7 @@ configure_runtime_files() {
         "$HOME_DIR/config/config.toml" \
         "$MIN_GAS_PRICES" \
         "$persistent_peers" \
-        "${P2P_HOST}:${P2P_PORT}" \
+        "$P2P_EXTERNAL_ADDRESS" \
         "$RPC_PORT" \
         "$JSON_RPC_ADDRESS" \
         "$JSON_RPC_WS_ADDRESS" \
@@ -186,18 +186,30 @@ PYEOF
 write_peer_info() {
     local node_id=""
     node_id="$("$BINARY" comet show-node-id --home "$HOME_DIR")"
-    printf '%s@%s:%s\n' "$node_id" "$P2P_HOST" "$P2P_PORT" >"$PEER_INFO_FILE"
+    if [ -n "$P2P_EXTERNAL_ADDRESS" ]; then
+        printf '%s@%s\n' "$node_id" "$P2P_EXTERNAL_ADDRESS" >"$PEER_INFO_FILE"
+        return 0
+    fi
+
+    printf 'not advertised (node_id=%s)\n' "$node_id" >"$PEER_INFO_FILE"
 }
 
 start_node() {
-    exec "$BINARY" start \
+    local args=(
+        start
         --home "$HOME_DIR" \
         --chain-id "$CHAIN_ID" \
         --minimum-gas-prices "$MIN_GAS_PRICES" \
         --p2p.laddr "tcp://0.0.0.0:${P2P_PORT}" \
-        --p2p.external-address "${P2P_HOST}:${P2P_PORT}" \
         --p2p.persistent_peers "$(bootstrap_peers_value)" \
         --rpc.laddr "tcp://0.0.0.0:${RPC_PORT}"
+    )
+
+    if [ -n "$P2P_EXTERNAL_ADDRESS" ]; then
+        args+=(--p2p.external-address "$P2P_EXTERNAL_ADDRESS")
+    fi
+
+    exec "$BINARY" "${args[@]}"
 }
 
 usage() {
@@ -213,6 +225,9 @@ Runtime data:
   - data/node
   - data/node.log
   - data/peer_info.txt
+
+Optional:
+  - set P2P_EXTERNAL_ADDRESS=host:26656 only on publicly reachable nodes
 EOF
 }
 

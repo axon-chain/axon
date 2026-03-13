@@ -12,7 +12,7 @@ The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosm
 
 | Item | Value |
 |------|-------|
-| Chain ID (Cosmos) | `axon_8210-1` |
+| Chain ID (EVM) | `9001` |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656` |
 | Bootstrap Peer | `65c18fb46f34cb0bd8430423491e5a36dea15aa2@mainnet-node.axonchain.ai:26656` |
@@ -28,6 +28,94 @@ RPC interface roles:
 - `CometBFT RPC`: for node operators and Cosmos/CometBFT-side maintenance only
 
 Ordinary users should use the Axon `EVM JSON-RPC` endpoint. `CometBFT RPC` is not part of the public wallet-facing access information.
+
+## MetaMask
+
+Use the following values when adding Axon to MetaMask:
+
+| Field | Value |
+|------|-------|
+| Network Name | `Axon` |
+| RPC URL | `https://mainnet-rpc.axonchain.ai/` |
+| Chain ID | `9001` |
+| Currency Symbol | `AXON` |
+
+MetaMask uses the EVM network identity, so the correct wallet-facing chain ID is `9001`.
+
+## Mainnet Parameters
+
+### Core Network
+
+| Parameter | Value |
+|-----------|-------|
+| Cosmos Chain ID | `axon_8210-1` |
+| EVM Chain ID | `9001` |
+| Native EVM Denom | `aaxon` |
+| Native Display Token | `AXON` |
+| Initial Supply | `0` |
+
+### Consensus
+
+| Parameter | Value |
+|-----------|-------|
+| Block Gas Limit | `40,000,000` |
+| Block Size Limit | `2 MB` |
+| Target Block Time | `~5 seconds` |
+
+### Staking
+
+| Parameter | Value |
+|-----------|-------|
+| Staking Token | `aaxon` |
+| Unbonding Period | `14 days` |
+| Max Validators | `100` |
+| Min Commission Rate | `5%` |
+
+### Slashing
+
+| Parameter | Value |
+|-----------|-------|
+| Signed Blocks Window | `10,000` |
+| Min Signed Per Window | `5%` |
+| Downtime Jail Duration | `600 seconds` |
+| Double Sign Slash Fraction | `5%` |
+| Downtime Slash Fraction | `0.1%` |
+
+### Governance
+
+| Parameter | Value |
+|-----------|-------|
+| Min Proposal Deposit | `10,000 AXON` |
+| Deposit Period | `2 days` |
+| Voting Period | `7 days` |
+| Quorum | `33.4%` |
+| Pass Threshold | `50%` |
+| Veto Threshold | `33.4%` |
+
+### Fee Market And Mint
+
+| Parameter | Value |
+|-----------|-------|
+| Base Fee Enabled | `Yes` |
+| Initial Base Fee | `1 gwei` |
+| Mint Inflation | `0%` |
+| Community Tax | `0%` |
+| Base Proposer Reward | `0%` |
+| Bonus Proposer Reward | `0%` |
+
+The standard mint module is disabled. Token issuance is handled by the Agent module mining logic.
+
+### Agent Module
+
+| Parameter | Value |
+|-----------|-------|
+| Min Registration Stake | `100 AXON` |
+| Registration Burn Amount | `20 AXON` |
+| Max Reputation Score | `100` |
+| Epoch Length | `720 blocks (~1 hour)` |
+| Heartbeat Timeout | `720 blocks (~1 hour)` |
+| AI Challenge Window | `50 blocks` |
+| Deregistration Cooldown | `120,960 blocks (~7 days)` |
 
 ## Code Layout
 
@@ -66,7 +154,7 @@ make build
 Install the binary to the default public script location:
 
 ```bash
-sudo install -m 0755 ./build/axond /usr/local/bin/axond
+install -m 0755 ./build/axond /usr/local/bin/axond
 ```
 
 Run tests:
@@ -144,14 +232,14 @@ Supported public scripts:
 Manual download from this repository:
 
 ```bash
-sudo mkdir -p /opt/axon-node
+mkdir -p /opt/axon-node
 cd /opt/axon-node
 
-sudo curl -fsSLo start_validator_node.sh https://raw.githubusercontent.com/axon-chain/axon/main/scripts/start_validator_node.sh
-sudo curl -fsSLo start_sync_node.sh https://raw.githubusercontent.com/axon-chain/axon/main/scripts/start_sync_node.sh
-sudo curl -fsSLo genesis.json https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/genesis.json
-sudo curl -fsSLo bootstrap_peers.txt https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/bootstrap_peers.txt
-sudo chmod 0755 start_validator_node.sh start_sync_node.sh
+curl -fsSLo start_validator_node.sh https://raw.githubusercontent.com/axon-chain/axon/main/scripts/start_validator_node.sh
+curl -fsSLo start_sync_node.sh https://raw.githubusercontent.com/axon-chain/axon/main/scripts/start_sync_node.sh
+curl -fsSLo genesis.json https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/genesis.json
+curl -fsSLo bootstrap_peers.txt https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/bootstrap_peers.txt
+chmod 0755 start_validator_node.sh start_sync_node.sh
 ```
 
 Local execution:
@@ -207,6 +295,8 @@ Runtime behavior:
 
 - each script resolves `axond`, `genesis.json`, `bootstrap_peers.txt`, and `data/` relative to its own directory
 - if `./axond` is missing, the script downloads the latest binary from the built-in release URL constant
+- leave `P2P_EXTERNAL_ADDRESS` unset on ordinary outbound-only nodes so they do not advertise an unresolvable local hostname
+- set `P2P_EXTERNAL_ADDRESS=host:26656` only on publicly reachable nodes that should accept inbound P2P connections
 - `./start_validator_node.sh init` creates the validator account and writes `data/validator.mnemonic`, `data/validator.address`, `data/validator.valoper`, `data/validator.consensus_pubkey.json`, and `data/peer_info.txt`
 - `./start_validator_node.sh create-validator` requires a funded account and a reachable `COMETBFT_RPC` endpoint such as `http://127.0.0.1:26657`
 - `./start_validator_node.sh start` only starts the local validator node process
@@ -266,7 +356,6 @@ Related implementations:
 ## Supporting References
 
 - [Whitepaper](docs/whitepaper_en.md)
-- [Mainnet Parameters](docs/MAINNET_PARAMS_EN.md)
 - [Security Audit](docs/SECURITY_AUDIT_EN.md)
 
 ## License

@@ -17,7 +17,9 @@ import (
 	sdkmempool "github.com/cosmos/cosmos-sdk/types/mempool"
 )
 
-const mempoolOperateExclusively = true
+// Keep CometBFT in the transaction propagation path so public full nodes can
+// accept wallet writes and relay executable transactions to validators.
+const mempoolOperateExclusively = false
 
 func (app *AxonApp) configureEVMMempool(appOpts servertypes.AppOptions, logger log.Logger) error {
 	if evmtypes.GetChainConfig() == nil {

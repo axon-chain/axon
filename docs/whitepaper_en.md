@@ -356,9 +356,10 @@ interface IAgentRegistry {
 
     function register(
         string memory capabilities,
-        string memory model,
-        uint256 stakeAmount
-    ) external;
+        string memory model
+    ) external payable;
+
+    function addStake() external payable;
 
     function updateAgent(
         string memory capabilities,
@@ -797,11 +798,11 @@ An Agent downloads a single executable to run a full node, participate in consen
 
 ```bash
 # Download
-curl -L https://github.com/axon-chain/axon/releases/latest/axond \
+curl -L https://assets.axonchain.ai/axond/latest/axond_linux_amd64 \
   -o axond && chmod +x axond
 
 # Initialize
-./axond init my-agent --chain-id axon-1
+./axond init my-agent --chain-id axon_8210-1
 
 # Fetch genesis file
 curl -L https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/genesis.json \
@@ -812,14 +813,15 @@ curl -L https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/gene
 
 # Stake to become a validator
 ./axond tx staking create-validator \
-  --amount 10000axon \
+  --amount 100000000000000000000aaxon \
   --commission-rate 0.10 \
   --from my-wallet
 
 # Register Agent identity
 ./axond tx agent register \
-  --capabilities "text-inference,code-generation,solidity" \
-  --model "claude-4" \
+  "text-inference,code-generation,solidity" \
+  "axon-demo-model" \
+  100000000000000000000aaxon \
   --from my-wallet
 ```
 
@@ -835,7 +837,7 @@ client.set_account(os.environ["AXON_PRIVATE_KEY"])
 # Register Agent identity
 client.register_agent(
     capabilities="text-inference,code-generation",
-    model="llama-3-70b",
+    model="axon-demo-model",
     stake_axon=100,
 )
 
@@ -857,6 +859,7 @@ Fully EVM-compatible — all Ethereum tools work directly:
 MetaMask:
   Network name   Axon
   RPC URL        https://mainnet-rpc.axonchain.ai/
+  Chain ID       8210
   Token symbol   AXON
 
 Hardhat / Foundry:

@@ -238,3 +238,38 @@ func TestBlockRewardShareValues(t *testing.T) {
 		t.Errorf("AIPerformanceSharePercent = %d, want 25", keeper.AIPerformanceSharePercent)
 	}
 }
+
+func TestContributionRewardCapScalesWithStakeShare(t *testing.T) {
+	pool := big.NewInt(1_000_000)
+	totalStake := big.NewInt(1_000)
+
+	stakeA := big.NewInt(600)
+	stakeB := big.NewInt(400)
+
+	capA := keeper.ContributionRewardCapForTest(pool, stakeA, totalStake)
+	capB := keeper.ContributionRewardCapForTest(pool, stakeB, totalStake)
+
+	expectedA := big.NewInt(12_000) // 1,000,000 * 2% * 60%
+	expectedB := big.NewInt(8_000)  // 1,000,000 * 2% * 40%
+
+	if capA.Cmp(expectedA) != 0 {
+		t.Fatalf("capA = %s, want %s", capA, expectedA)
+	}
+	if capB.Cmp(expectedB) != 0 {
+		t.Fatalf("capB = %s, want %s", capB, expectedB)
+	}
+}
+
+func TestContributionRewardCapIsSybilInvariant(t *testing.T) {
+	pool := big.NewInt(1_000_000)
+	totalStake := big.NewInt(1_000)
+
+	combined := keeper.ContributionRewardCapForTest(pool, big.NewInt(600), totalStake)
+	splitOne := keeper.ContributionRewardCapForTest(pool, big.NewInt(300), totalStake)
+	splitTwo := keeper.ContributionRewardCapForTest(pool, big.NewInt(300), totalStake)
+
+	splitTotal := new(big.Int).Add(splitOne, splitTwo)
+	if splitTotal.Cmp(combined) != 0 {
+		t.Fatalf("split cap total = %s, want %s", splitTotal, combined)
+	}
+}

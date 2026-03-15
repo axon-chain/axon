@@ -27,6 +27,7 @@ func GetTxCmd() *cobra.Command {
 
 	txCmd.AddCommand(
 		CmdRegister(),
+		CmdAddStake(),
 		CmdDeregister(),
 		CmdHeartbeat(),
 		CmdUpdateAgent(),
@@ -59,6 +60,36 @@ func CmdRegister() *cobra.Command {
 				Capabilities: args[0],
 				Model:        args[1],
 				Stake:        stake,
+			}
+
+			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)
+		},
+	}
+
+	flags.AddTxFlagsToCmd(cmd)
+	return cmd
+}
+
+func CmdAddStake() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "add-stake [amount]",
+		Short: "Add stake to an existing AI agent",
+		Long:  "Increase the stake of an already-registered AI agent.\nExample: axond tx agent add-stake 50000000000000000000aaxon",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			clientCtx, err := client.GetClientTxContext(cmd)
+			if err != nil {
+				return err
+			}
+
+			stake, err := sdk.ParseCoinNormalized(args[0])
+			if err != nil {
+				return fmt.Errorf("invalid stake amount: %w", err)
+			}
+
+			msg := &types.MsgAddStake{
+				Sender: clientCtx.GetFromAddress().String(),
+				Stake:  stake,
 			}
 
 			return tx.GenerateOrBroadcastTxCLI(clientCtx, cmd.Flags(), msg)

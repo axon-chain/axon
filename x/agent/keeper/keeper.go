@@ -117,6 +117,24 @@ func (k Keeper) IsAgent(ctx sdk.Context, address string) bool {
 	return found
 }
 
+func (k Keeper) isActiveValidatorAddress(ctx sdk.Context, address string) bool {
+	if k.stakingKeeper == nil {
+		return false
+	}
+
+	accAddr, err := sdk.AccAddressFromBech32(address)
+	if err != nil {
+		return false
+	}
+
+	validator, err := k.stakingKeeper.GetValidator(ctx, sdk.ValAddress(accAddr))
+	if err != nil {
+		return false
+	}
+
+	return validator.IsBonded() && !validator.IsJailed()
+}
+
 // Contract deployer tracking for contribution rewards
 
 func (k Keeper) SetContractDeployer(ctx sdk.Context, contractAddr, deployerAddr string) {
@@ -225,6 +243,42 @@ func (k Keeper) RegisterFromPrecompile(ctx sdk.Context, msg *types.MsgRegister, 
 	))
 
 	return &types.MsgRegisterResponse{AgentId: agent.AgentId}, nil
+}
+
+func (k Keeper) AddStakeToAgent(ctx sdk.Context, sender string, stake sdk.Coin, fundsSource sdk.AccAddress) (*types.MsgAddStakeResponse, error) {
+	agent, found := k.GetAgent(ctx, sender)
+	if !found {
+		return nil, types.ErrAgentNotFound
+	}
+	if agent.Status == types.AgentStatus_AGENT_STATUS_SUSPENDED {
+		return nil, types.ErrAgentSuspended
+	}
+	if k.HasDeregisterRequest(ctx, sender) {
+		return nil, types.ErrDeregisterCooldown
+	}
+
+	if stake.Denom != "aaxon" {
+		return nil, types.ErrInvalidStakeDenom
+	}
+	if !stake.IsPositive() {
+		return nil, types.ErrStakeAmountMustBePositive
+	}
+
+	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, fundsSource, types.ModuleName, sdk.NewCoins(stake)); err != nil {
+		return nil, err
+	}
+
+	agent.StakeAmount = agent.StakeAmount.Add(stake)
+	k.SetAgent(ctx, agent)
+
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		"agent_stake_added",
+		sdk.NewAttribute("address", sender),
+		sdk.NewAttribute("amount", stake.String()),
+		sdk.NewAttribute("total_stake", agent.StakeAmount.String()),
+	))
+
+	return &types.MsgAddStakeResponse{TotalStake: agent.StakeAmount}, nil
 }
 
 func (k Keeper) GetReputation(ctx sdk.Context, address string) uint64 {

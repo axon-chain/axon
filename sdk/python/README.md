@@ -30,12 +30,15 @@ rep = client.get_reputation("0x1234...")
 
 # Register as agent (requires private key)
 client.set_account(os.environ["AXON_PRIVATE_KEY"])
-tx = client.register_agent("nlp,vision", "gpt-4", stake_axon=100)
+tx = client.register_agent("nlp,vision", "axon-demo-model", stake_axon=100)
+
+# Add more stake later without re-registering
+top_up = client.add_stake(500)
 ```
 
 ## Features
 
-- Agent registration, heartbeat, deregistration
+- Agent registration, stake top-ups, heartbeat, deregistration
 - Reputation and AI bonus queries
 - Smart contract deployment and interaction
 - Wallet management via precompiles

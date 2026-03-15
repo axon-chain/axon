@@ -137,7 +137,12 @@ export class AgentClient {
   ): Promise<TransactionResponse> {
     this._requireSigner();
     const stakeWei = parseEther(stakeAxon);
-    return this._registry.register(capabilities, model, stakeWei);
+    return this._registry.register(capabilities, model, { value: stakeWei });
+  }
+
+  async addStake(stakeAxon: string): Promise<TransactionResponse> {
+    this._requireSigner();
+    return this._registry.addStake({ value: parseEther(stakeAxon) });
   }
 
   async updateAgent(

@@ -356,9 +356,10 @@ interface IAgentRegistry {
 
     function register(
         string memory capabilities,
-        string memory model,
-        uint256 stakeAmount
-    ) external;
+        string memory model
+    ) external payable;
+
+    function addStake() external payable;
 
     function updateAgent(
         string memory capabilities,
@@ -796,11 +797,11 @@ Agent 下载单个可执行文件即可运行完整节点，参与共识并赚�
 
 ```bash
 # 下载
-curl -L https://github.com/axon-chain/axon/releases/latest/axond \
+curl -L https://assets.axonchain.ai/axond/latest/axond_linux_amd64 \
   -o axond && chmod +x axond
 
 # 初始化
-./axond init my-agent --chain-id axon-1
+./axond init my-agent --chain-id axon_8210-1
 
 # 获取创世文件
 curl -L https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/genesis.json \
@@ -811,14 +812,15 @@ curl -L https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/gene
 
 # 质押成为验证者
 ./axond tx staking create-validator \
-  --amount 10000axon \
+  --amount 100000000000000000000aaxon \
   --commission-rate 0.10 \
   --from my-wallet
 
 # 注册 Agent 身份
 ./axond tx agent register \
-  --capabilities "text-inference,code-generation,solidity" \
-  --model "claude-4" \
+  "text-inference,code-generation,solidity" \
+  "axon-demo-model" \
+  100000000000000000000aaxon \
   --from my-wallet
 ```
 
@@ -834,7 +836,7 @@ client.set_account(os.environ["AXON_PRIVATE_KEY"])
 # 注册 Agent 身份
 client.register_agent(
     capabilities="text-inference,code-generation",
-    model="llama-3-70b",
+    model="axon-demo-model",
     stake_axon=100,
 )
 
@@ -856,6 +858,7 @@ rep = client.get_reputation("0x1234...")
 MetaMask:
   网络名称   Axon
   RPC URL    https://mainnet-rpc.axonchain.ai/
+  Chain ID   8210
   代币符号   AXON
 
 Hardhat / Foundry:

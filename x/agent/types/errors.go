@@ -21,4 +21,7 @@ var (
 	ErrRevealWindowClosed         = errors.Register(ModuleName, 1115, "reveal window has closed")
 	ErrAlreadyEvaluated           = errors.Register(ModuleName, 1116, "challenge already evaluated")
 	ErrDailyRegisterLimitExceeded = errors.Register(ModuleName, 1117, "daily registration limit exceeded (max 3 per address per day)")
+	ErrInvalidStakeDenom          = errors.Register(ModuleName, 1118, "invalid stake denom")
+	ErrStakeAmountMustBePositive  = errors.Register(ModuleName, 1119, "stake amount must be positive")
+	ErrValidatorRequired          = errors.Register(ModuleName, 1120, "operation requires an active bonded validator")
 )

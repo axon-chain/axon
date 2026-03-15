@@ -17,13 +17,15 @@ interface IAgentRegistry {
     );
 
     /// @notice Register as an Agent. Requires staking >= 100 AXON.
-    /// @dev 20 AXON of the stake is permanently burned.
-    /// @param stakeAmount Amount of aaxon to stake (transferred via bank module, not msg.value)
+    /// @dev Send stake as msg.value. 20 AXON of the initial stake is permanently burned.
     function register(
         string memory capabilities,
-        string memory model,
-        uint256 stakeAmount
-    ) external;
+        string memory model
+    ) external payable;
+
+    /// @notice Add more stake to an existing Agent.
+    /// @dev Send additional stake as msg.value.
+    function addStake() external payable;
 
     /// @notice Update Agent capabilities and model
     function updateAgent(

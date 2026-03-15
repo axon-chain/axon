@@ -36,6 +36,12 @@ def main():
     receipt = client.wait_for_tx(tx_hash)
     print(f"  Block: {receipt['blockNumber']}, Gas: {receipt['gasUsed']}")
 
+    # Add more stake without re-registering
+    print("\nAdding more stake...")
+    tx_hash = client.add_stake(25)
+    receipt = client.wait_for_tx(tx_hash)
+    print(f"  Added stake in block {receipt['blockNumber']}")
+
     # Query agent info
     info = client.get_agent(address)
     print(f"\nAgent info:")

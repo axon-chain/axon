@@ -103,6 +103,17 @@ func (k msgServer) Register(goCtx context.Context, msg *types.MsgRegister) (*typ
 	return &types.MsgRegisterResponse{AgentId: agent.AgentId}, nil
 }
 
+func (k msgServer) AddStake(goCtx context.Context, msg *types.MsgAddStake) (*types.MsgAddStakeResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return nil, err
+	}
+
+	return k.Keeper.AddStakeToAgent(ctx, msg.Sender, msg.Stake, senderAddr)
+}
+
 func (k msgServer) UpdateAgent(goCtx context.Context, msg *types.MsgUpdateAgent) (*types.MsgUpdateAgentResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
@@ -199,6 +210,9 @@ func (k msgServer) SubmitAIChallengeResponse(goCtx context.Context, msg *types.M
 	if agent.Status == types.AgentStatus_AGENT_STATUS_SUSPENDED {
 		return nil, types.ErrAgentSuspended
 	}
+	if !k.isActiveValidatorAddress(ctx, msg.Sender) {
+		return nil, types.ErrValidatorRequired
+	}
 
 	challenge, found := k.GetChallenge(ctx, msg.Epoch)
 	if !found {
@@ -235,10 +249,13 @@ func (k msgServer) RevealAIChallengeResponse(goCtx context.Context, msg *types.M
 	params := k.GetParams(ctx)
 
 	if _, found := k.GetAgent(ctx, msg.Sender); !found {
-		return nil, fmt.Errorf("agent not found: %s", msg.Sender)
+		return nil, types.ErrAgentNotFound
 	}
 	if k.HasDeregisterRequest(ctx, msg.Sender) {
-		return nil, fmt.Errorf("agent is deregistering and cannot reveal")
+		return nil, types.ErrDeregisterCooldown
+	}
+	if !k.isActiveValidatorAddress(ctx, msg.Sender) {
+		return nil, types.ErrValidatorRequired
 	}
 
 	challenge, found := k.GetChallenge(ctx, msg.Epoch)

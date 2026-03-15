@@ -271,7 +271,9 @@ func (k Keeper) EvaluateEpochChallenges(ctx sdk.Context, epoch uint64) {
 	}
 
 	k.IterateAgents(ctx, func(agent types.Agent) bool {
-		if agent.Status == types.AgentStatus_AGENT_STATUS_ONLINE && !respondents[agent.Address] {
+		if agent.Status == types.AgentStatus_AGENT_STATUS_ONLINE &&
+			k.isActiveValidatorAddress(ctx, agent.Address) &&
+			!respondents[agent.Address] {
 			k.SetAIBonus(ctx, agent.Address, 0)
 		}
 		return false

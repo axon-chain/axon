@@ -43,6 +43,10 @@ const client2 = new AgentClient("https://mainnet-rpc.axonchain.ai/", process.env
 const tx = await client.registerAgent("nlp,vision", "axon-7b", "100");
 await tx.wait();
 
+// Add more stake later without re-registering
+const topUp = await client.addStake("500");
+await topUp.wait();
+
 // Send AXON
 const transfer = await client.transfer("0xRecipient...", "5.0");
 await transfer.wait();

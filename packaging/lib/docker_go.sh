@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-PACKAGING_DOCKER_IMAGE="${PACKAGING_DOCKER_IMAGE:-golang:1.25-trixie}"
+PACKAGING_DOCKER_IMAGE="${PACKAGING_DOCKER_IMAGE:-golang:1.25.0-trixie}"
 PACKAGING_WORKSPACE="/workspace"
 
 packaging_need_cmd() {

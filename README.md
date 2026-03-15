@@ -12,7 +12,8 @@ The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosm
 
 | Item | Value |
 |------|-------|
-| Chain ID (EVM) | `9001` |
+| Cosmos Chain ID | `axon_8210-1` |
+| Chain ID (EVM) | `8210` |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656` |
 | Bootstrap Peer | `65c18fb46f34cb0bd8430423491e5a36dea15aa2@mainnet-node.axonchain.ai:26656` |
@@ -20,14 +21,7 @@ The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosm
 | Bootstrap Peers File | `docs/mainnet/bootstrap_peers.txt` |
 | Native Token | `AXON` |
 
-The repository currently publishes the public `EVM JSON-RPC` endpoint and the P2P bootstrap entry.
-
-RPC interface roles:
-
-- `EVM JSON-RPC`: for wallets, MetaMask, contracts, and Ethereum-compatible clients
-- `CometBFT RPC`: for node operators and Cosmos/CometBFT-side maintenance only
-
-Ordinary users should use the Axon `EVM JSON-RPC` endpoint. `CometBFT RPC` is not part of the public wallet-facing access information.
+The repository publishes the public `EVM JSON-RPC` endpoint for wallets and applications, plus the P2P bootstrap entry for node discovery and sync.
 
 ## MetaMask
 
@@ -37,10 +31,20 @@ Use the following values when adding Axon to MetaMask:
 |------|-------|
 | Network Name | `Axon` |
 | RPC URL | `https://mainnet-rpc.axonchain.ai/` |
-| Chain ID | `9001` |
+| Chain ID | `8210` |
 | Currency Symbol | `AXON` |
 
-MetaMask uses the EVM network identity, so the correct wallet-facing chain ID is `9001`.
+MetaMask uses the EVM network identity, so the correct wallet-facing chain ID is `8210`.
+
+## Chain IDs And Genesis
+
+- The published Axon mainnet genesis file already fixes the Cosmos chain ID to `axon_8210-1`. Mainnet nodes must use that exact value.
+- The wallet-facing EVM chain ID is `8210`. MetaMask and other Ethereum-compatible clients must use this value for signing and replay protection.
+- When generating a brand-new network genesis from source, choose two IDs and keep them consistent across every node:
+  - a globally unique Cosmos chain ID, typically in the form `axon_<network>-1`
+  - an unused integer EVM chain ID
+- The Cosmos chain ID is set during initialization with `axond init --chain-id <cosmos-chain-id>` and is written into the root `chain_id` field in `genesis.json`.
+- A new public network must not reuse an existing public EVM chain ID.
 
 ## Mainnet Parameters
 
@@ -49,7 +53,7 @@ MetaMask uses the EVM network identity, so the correct wallet-facing chain ID is
 | Parameter | Value |
 |-----------|-------|
 | Cosmos Chain ID | `axon_8210-1` |
-| EVM Chain ID | `9001` |
+| EVM Chain ID | `8210` |
 | Native EVM Denom | `aaxon` |
 | Native Display Token | `AXON` |
 | Initial Supply | `0` |
@@ -196,7 +200,7 @@ Each release directory contains `SHA256SUMS` and `BUILD_REPORT.md`.
 Override the builder image if required:
 
 ```bash
-PACKAGING_DOCKER_IMAGE=golang:1.25-bookworm bash packaging/build_release_matrix.sh --version v1.0.0
+PACKAGING_DOCKER_IMAGE=golang:1.25.0-trixie bash packaging/build_release_matrix.sh --version v1.0.0
 ```
 
 Verify checksums on Linux:
@@ -240,6 +244,8 @@ curl -fsSLo start_sync_node.sh https://raw.githubusercontent.com/axon-chain/axon
 curl -fsSLo genesis.json https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/genesis.json
 curl -fsSLo bootstrap_peers.txt https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/bootstrap_peers.txt
 chmod 0755 start_validator_node.sh start_sync_node.sh
+printf 'replace-with-a-strong-passphrase\n' > keyring.pass
+chmod 0600 keyring.pass
 ```
 
 Local execution:
@@ -251,10 +257,10 @@ cd /opt/axon-node
 
 ```bash
 cd /opt/axon-node
-./start_validator_node.sh init
+KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init
 # fund the printed account address
-COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
-./start_validator_node.sh start
+KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
+KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh start
 ```
 
 Docker execution:
@@ -271,7 +277,7 @@ docker run --rm -it \
   -p 9090:9090 \
   --entrypoint bash \
   debian:trixie-slim \
-  -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps && ./start_sync_node.sh'
+  -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps coreutils && ./start_sync_node.sh'
 ```
 
 ```bash
@@ -286,7 +292,7 @@ docker run --rm -it \
   -p 9090:9090 \
   --entrypoint bash \
   debian:trixie-slim \
-  -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps && ./start_validator_node.sh init'
+  -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps coreutils && KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init'
 ```
 
 Use the same Docker wrapper for `./start_validator_node.sh create-validator` and `./start_validator_node.sh start`. Only the `create-validator` step needs `COMETBFT_RPC`.
@@ -294,11 +300,15 @@ Use the same Docker wrapper for `./start_validator_node.sh create-validator` and
 Runtime behavior:
 
 - each script resolves `axond`, `genesis.json`, `bootstrap_peers.txt`, and `data/` relative to its own directory
-- if `./axond` is missing, the script downloads the latest binary from the built-in release URL constant
+- if `./axond` is missing, the script downloads the latest binary from the built-in release URL constant and verifies its SHA-256 sidecar file before use
+- for the published mainnet files, leave `CHAIN_ID` at the default `axon_8210-1`
+- if you generate a brand-new network genesis, set `CHAIN_ID` to the same Cosmos chain ID used when running `axond init --chain-id ...`
 - leave `P2P_EXTERNAL_ADDRESS` unset on ordinary outbound-only nodes so they do not advertise an unresolvable local hostname
 - set `P2P_EXTERNAL_ADDRESS=host:26656` only on publicly reachable nodes that should accept inbound P2P connections
-- `./start_validator_node.sh init` creates the validator account and writes `data/validator.mnemonic`, `data/validator.address`, `data/validator.valoper`, `data/validator.consensus_pubkey.json`, and `data/peer_info.txt`
-- `./start_validator_node.sh create-validator` requires a funded account and a reachable `COMETBFT_RPC` endpoint such as `http://127.0.0.1:26657`
+- `./start_validator_node.sh init` creates or imports the validator account, prints a newly generated mnemonic once to stdout, and writes `data/validator.address`, `data/validator.valoper`, `data/validator.consensus_pubkey.json`, and `data/peer_info.txt`
+- the default validator flow uses `KEYRING_BACKEND=file`; set `KEYRING_PASSWORD_FILE` to a local passphrase file before running validator commands
+- set `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt` when importing an existing validator account instead of generating a new one
+- `./start_validator_node.sh create-validator` requires a funded account, `KEYRING_PASSWORD_FILE`, and a reachable self-hosted `COMETBFT_RPC` endpoint such as `http://127.0.0.1:26657`
 - `./start_validator_node.sh start` only starts the local validator node process
 - the release bundle produced by `packaging/package_axond.sh` already contains `axond`, both scripts, `genesis.json`, and `bootstrap_peers.txt`
 - the default node service port set is `P2P 26656`, `CometBFT RPC 26657`, `JSON-RPC 8545`, `JSON-RPC WS 8546`, `REST API 1317`, `gRPC 9090`
@@ -326,7 +336,7 @@ import os
 
 client = AgentClient(os.environ["AXON_RPC_URL"])
 client.set_account(os.environ["AXON_PRIVATE_KEY"])
-tx = client.register_agent("nlp,reasoning", "gpt-4", stake_axon=100)
+tx = client.register_agent("nlp,reasoning", "axon-demo-model", stake_axon=100)
 ```
 
 TypeScript SDK install:
@@ -343,8 +353,10 @@ import { AgentClient } from "@axon-chain/sdk";
 
 const client = new AgentClient(process.env.AXON_RPC_URL!);
 client.connect(process.env.AXON_PRIVATE_KEY!);
-const tx = await client.registerAgent("nlp,reasoning", "gpt-4", "100");
+const tx = await client.registerAgent("nlp,reasoning", "axon-demo-model", "100");
 await tx.wait();
+const addStakeTx = await client.addStake("500");
+await addStakeTx.wait();
 ```
 
 Related implementations:

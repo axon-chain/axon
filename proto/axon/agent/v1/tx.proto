@@ -11,6 +11,7 @@ service Msg {
   option (cosmos.msg.v1.service) = true;
 
   rpc Register(MsgRegister) returns (MsgRegisterResponse);
+  rpc AddStake(MsgAddStake) returns (MsgAddStakeResponse);
   rpc UpdateAgent(MsgUpdateAgent) returns (MsgUpdateAgentResponse);
   rpc Heartbeat(MsgHeartbeat) returns (MsgHeartbeatResponse);
   rpc Deregister(MsgDeregister) returns (MsgDeregisterResponse);
@@ -28,6 +29,16 @@ message MsgRegister {
 
 message MsgRegisterResponse {
   string agent_id = 1;
+}
+
+message MsgAddStake {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  cosmos.base.v1beta1.Coin stake = 2 [(gogoproto.nullable) = false];
+}
+
+message MsgAddStakeResponse {
+  cosmos.base.v1beta1.Coin total_stake = 1 [(gogoproto.nullable) = false];
 }
 
 message MsgUpdateAgent {

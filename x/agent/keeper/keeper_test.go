@@ -1,6 +1,7 @@
 package keeper_test
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -9,6 +10,7 @@ import (
 	codectypes "github.com/cosmos/cosmos-sdk/codec/types"
 	"github.com/cosmos/cosmos-sdk/runtime"
 	sdk "github.com/cosmos/cosmos-sdk/types"
+	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
 
 	"github.com/axon-chain/axon/x/agent/keeper"
 	"github.com/axon-chain/axon/x/agent/types"
@@ -58,11 +60,34 @@ func (m *mockBankKeeper) GetBalance(_ context.Context, addr sdk.AccAddress, deno
 	return sdk.NewCoin(denom, coins.AmountOf(denom))
 }
 
-// mockStakingKeeper is unused but required
-type mockStakingKeeper struct{}
+type mockStakingKeeper struct {
+	validators map[string]stakingtypes.Validator
+}
 
-func (m *mockStakingKeeper) GetValidator(_ context.Context, _ sdk.ValAddress) (interface{}, error) {
-	return nil, nil
+func newMockStakingKeeper() *mockStakingKeeper {
+	return &mockStakingKeeper{validators: make(map[string]stakingtypes.Validator)}
+}
+
+func (m *mockStakingKeeper) GetValidator(_ context.Context, addr sdk.ValAddress) (stakingtypes.Validator, error) {
+	validator, ok := m.validators[addr.String()]
+	if !ok {
+		return stakingtypes.Validator{}, stakingtypes.ErrNoValidatorFound
+	}
+	return validator, nil
+}
+
+func (m *mockStakingKeeper) GetValidatorByConsAddr(_ context.Context, _ sdk.ConsAddress) (stakingtypes.Validator, error) {
+	return stakingtypes.Validator{}, stakingtypes.ErrNoValidatorFound
+}
+
+func (m *mockStakingKeeper) GetBondedValidatorsByPower(_ context.Context) ([]stakingtypes.Validator, error) {
+	validators := make([]stakingtypes.Validator, 0, len(m.validators))
+	for _, validator := range m.validators {
+		if validator.IsBonded() && !validator.IsJailed() {
+			validators = append(validators, validator)
+		}
+	}
+	return validators, nil
 }
 
 func setupTestKeeper(t *testing.T) (keeper.Keeper, sdk.Context, *mockBankKeeper) {
@@ -138,6 +163,29 @@ func TestChallengePoolNotEmpty(t *testing.T) {
 	// Verify challenge pool has entries for AI challenge generation
 	if len(keeper.GetChallengePoolSize()) == 0 {
 		t.Error("challenge pool should not be empty")
+	}
+}
+
+func TestIsActiveValidatorAddress(t *testing.T) {
+	stakingKeeper := newMockStakingKeeper()
+	accAddr := sdk.AccAddress(bytes.Repeat([]byte{0x01}, 20))
+	valAddr := sdk.ValAddress(accAddr)
+	stakingKeeper.validators[valAddr.String()] = stakingtypes.Validator{
+		OperatorAddress: valAddr.String(),
+		Status:          stakingtypes.Bonded,
+	}
+
+	k := keeper.NewKeeper(nil, nil, nil, stakingKeeper)
+	if !keeper.IsActiveValidatorAddressForTest(k, sdk.Context{}, accAddr.String()) {
+		t.Fatal("expected bonded validator account to be eligible")
+	}
+
+	stakingKeeper.validators[valAddr.String()] = stakingtypes.Validator{
+		OperatorAddress: valAddr.String(),
+		Status:          stakingtypes.Unbonded,
+	}
+	if keeper.IsActiveValidatorAddressForTest(k, sdk.Context{}, accAddr.String()) {
+		t.Fatal("expected unbonded validator account to be ineligible")
 	}
 }
 

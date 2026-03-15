@@ -186,9 +186,10 @@ func reputationBonusPercent(reputation uint64) int64 {
 	}
 }
 
-// distributeValidatorRewards distributes 50% to active validators by weight.
+// distributeValidatorRewards distributes 50% to active bonded validators by weight.
 // Weight = Stake × (100 + ReputationBonus + AIBonus) per whitepaper §7.3.
-// Falls back to staking validators weighted by bonded tokens when no Agents are online.
+// Falls back to bonded staking validators weighted by bonded tokens when no
+// eligible validator Agents are online.
 func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.Int) {
 	if totalAmount.IsZero() {
 		return
@@ -204,6 +205,9 @@ func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.
 
 	k.IterateAgents(ctx, func(agent types.Agent) bool {
 		if agent.Status != types.AgentStatus_AGENT_STATUS_ONLINE {
+			return false
+		}
+		if !k.isActiveValidatorAddress(ctx, agent.Address) {
 			return false
 		}
 		stake := agent.StakeAmount.Amount.BigInt()
@@ -224,7 +228,7 @@ func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.
 		return false
 	})
 
-	// Fallback: if no online Agents, distribute to bonded staking validators
+	// Fallback: if no eligible validator Agents are online, distribute to bonded staking validators.
 	if len(validators) == 0 {
 		bondedVals, err := k.stakingKeeper.GetBondedValidatorsByPower(ctx)
 		if err == nil && len(bondedVals) > 0 {
@@ -275,8 +279,9 @@ func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.
 	}
 }
 
-// distributeAIPerformanceRewards distributes 25% by AI challenge scores.
-// If no agents have AI scores, the reward goes to the reward pool for later epoch distribution.
+// distributeAIPerformanceRewards distributes 25% to AI-qualified validator Agents
+// weighted by stake. AI bonus remains the eligibility signal; stake determines
+// the share so splitting stake across many validator Agents no longer improves payout.
 func (k Keeper) distributeAIPerformanceRewards(ctx sdk.Context, totalAmount sdkmath.Int) {
 	if totalAmount.IsZero() {
 		return
@@ -284,26 +289,34 @@ func (k Keeper) distributeAIPerformanceRewards(ctx sdk.Context, totalAmount sdkm
 
 	type aiWeight struct {
 		address string
-		bonus   int64
+		weight  *big.Int
 	}
 
 	var agents []aiWeight
-	totalBonus := int64(0)
+	totalWeight := new(big.Int)
 
 	k.IterateAgents(ctx, func(agent types.Agent) bool {
 		if agent.Status != types.AgentStatus_AGENT_STATUS_ONLINE {
+			return false
+		}
+		if !k.isActiveValidatorAddress(ctx, agent.Address) {
 			return false
 		}
 		bonus := k.GetAIBonus(ctx, agent.Address)
 		if bonus <= 0 {
 			return false
 		}
-		agents = append(agents, aiWeight{address: agent.Address, bonus: bonus})
-		totalBonus += bonus
+		stake := agent.StakeAmount.Amount.BigInt()
+		if stake.Sign() <= 0 {
+			return false
+		}
+		weight := new(big.Int).Set(stake)
+		agents = append(agents, aiWeight{address: agent.Address, weight: weight})
+		totalWeight.Add(totalWeight, weight)
 		return false
 	})
 
-	if totalBonus <= 0 || len(agents) == 0 {
+	if totalWeight.Sign() <= 0 || len(agents) == 0 {
 		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", totalAmount))
 		return
 	}
@@ -312,8 +325,8 @@ func (k Keeper) distributeAIPerformanceRewards(ctx sdk.Context, totalAmount sdkm
 	distributed := sdkmath.ZeroInt()
 
 	for _, a := range agents {
-		share := new(big.Int).Mul(totalBig, big.NewInt(a.bonus))
-		share.Div(share, big.NewInt(totalBonus))
+		share := new(big.Int).Mul(totalBig, a.weight)
+		share.Div(share, totalWeight)
 		reward := sdkmath.NewIntFromBigInt(share)
 		if reward.IsZero() {
 			continue

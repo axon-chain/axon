@@ -1,7 +1,10 @@
 package keeper
 
 import (
+	"math/big"
+
 	sdkmath "cosmossdk.io/math"
+	sdk "github.com/cosmos/cosmos-sdk/types"
 
 	"github.com/axon-chain/axon/x/agent/types"
 )
@@ -36,4 +39,12 @@ func ReputationBonusPercentForTest(reputation uint64) int64 {
 
 func DetectCheatersForTest(k Keeper, responses []types.AIResponse) map[string]bool {
 	return k.detectCheaters(responses)
+}
+
+func ContributionRewardCapForTest(poolAmount, agentStake, totalEligibleStake *big.Int) *big.Int {
+	return contributionRewardCap(poolAmount, agentStake, totalEligibleStake)
+}
+
+func IsActiveValidatorAddressForTest(k Keeper, ctx sdk.Context, address string) bool {
+	return k.isActiveValidatorAddress(ctx, address)
 }

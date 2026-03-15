@@ -10,7 +10,6 @@ BOOTSTRAP_PEERS_FILE="$SCRIPT_DIR/bootstrap_peers.txt"
 PEER_INFO_FILE="$DATA_DIR/peer_info.txt"
 PID_FILE="$DATA_DIR/node.pid"
 LOG_FILE="$DATA_DIR/node.log"
-MNEMONIC_FILE="$DATA_DIR/validator.mnemonic"
 ADDRESS_FILE="$DATA_DIR/validator.address"
 VALOPER_FILE="$DATA_DIR/validator.valoper"
 CONSENSUS_PUBKEY_FILE="$DATA_DIR/validator.consensus_pubkey.json"
@@ -29,11 +28,15 @@ API_ADDRESS="${API_ADDRESS:-tcp://0.0.0.0:1317}"
 GRPC_ADDRESS="${GRPC_ADDRESS:-0.0.0.0:9090}"
 MONIKER="${MONIKER:-axon-validator}"
 KEY_NAME="${KEY_NAME:-validator}"
-KEYRING_BACKEND="${KEYRING_BACKEND:-test}"
+KEYRING_BACKEND="${KEYRING_BACKEND:-file}"
+KEYRING_PASSWORD_FILE="${KEYRING_PASSWORD_FILE:-}"
+MNEMONIC_SOURCE_FILE="${MNEMONIC_SOURCE_FILE:-}"
 COMETBFT_RPC="${COMETBFT_RPC:-}"
 
 AXOND_DOWNLOAD_URL_LINUX_AMD64="${AXOND_DOWNLOAD_URL_LINUX_AMD64:-https://assets.axonchain.ai/axond/latest/axond_linux_amd64}"
 AXOND_DOWNLOAD_URL_LINUX_ARM64="${AXOND_DOWNLOAD_URL_LINUX_ARM64:-https://assets.axonchain.ai/axond/latest/axond_linux_arm64}"
+AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64:-https://assets.axonchain.ai/axond/latest/axond_linux_amd64.sha256}"
+AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64:-https://assets.axonchain.ai/axond/latest/axond_linux_arm64.sha256}"
 
 log() {
     printf '==> %s\n' "$*"
@@ -70,15 +73,63 @@ download_url() {
     esac
 }
 
+checksum_url() {
+    case "$(platform_key)" in
+        linux/amd64) printf '%s\n' "$AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64" ;;
+        linux/arm64) printf '%s\n' "$AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64" ;;
+        *) die "unsupported platform: $(platform_key)" ;;
+    esac
+}
+
+checksum_tool() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf 'sha256sum\n'
+        return 0
+    fi
+    if command -v shasum >/dev/null 2>&1; then
+        printf 'shasum\n'
+        return 0
+    fi
+    die "missing required command: sha256sum or shasum"
+}
+
+verify_checksum() {
+    local file_path="$1"
+    local checksum_path="$2"
+    local expected=""
+
+    expected="$(awk 'NF {print $1; exit}' "$checksum_path")"
+    [ -n "$expected" ] || die "checksum file is empty: $checksum_path"
+
+    case "$(checksum_tool)" in
+        sha256sum)
+            [ "$(sha256sum "$file_path" | awk '{print $1}')" = "$expected" ] || die "sha256 mismatch for $file_path"
+            ;;
+        shasum)
+            [ "$(shasum -a 256 "$file_path" | awk '{print $1}')" = "$expected" ] || die "sha256 mismatch for $file_path"
+            ;;
+    esac
+}
+
 ensure_binary() {
     if [ -x "$BINARY" ]; then
         return 0
     fi
 
     need_cmd curl
+    local tmp_binary=""
+    local tmp_checksum=""
+    tmp_binary="$(mktemp "$SCRIPT_DIR/.axond.XXXXXX")"
+    tmp_checksum="$(mktemp "$SCRIPT_DIR/.axond.sha256.XXXXXX")"
+    trap 'rm -f "$tmp_binary" "$tmp_checksum"' RETURN
     log "Downloading axond binary"
-    curl -fsSL "$(download_url)" -o "$BINARY"
+    curl -fsSL "$(download_url)" -o "$tmp_binary"
+    curl -fsSL "$(checksum_url)" -o "$tmp_checksum"
+    verify_checksum "$tmp_binary" "$tmp_checksum"
+    mv "$tmp_binary" "$BINARY"
     chmod 0755 "$BINARY"
+    rm -f "$tmp_checksum"
+    trap - RETURN
 }
 
 require_file() {
@@ -87,6 +138,41 @@ require_file() {
 
 require_initialized_home() {
     [ -f "$HOME_DIR/config/config.toml" ] || die "validator home not initialized: $HOME_DIR (run ./start_validator_node.sh init first)"
+}
+
+require_keyring_password_file() {
+    if [ "$KEYRING_BACKEND" = "file" ]; then
+        [ -n "$KEYRING_PASSWORD_FILE" ] || die "KEYRING_PASSWORD_FILE must be set when KEYRING_BACKEND=file"
+        require_file "$KEYRING_PASSWORD_FILE"
+    fi
+}
+
+run_with_keyring_password() {
+    local repetitions="$1"
+    shift
+
+    if [ "$KEYRING_BACKEND" != "file" ]; then
+        "$@"
+        return 0
+    fi
+
+    require_keyring_password_file
+
+    local password=""
+    password="$(tr -d '\r\n' < "$KEYRING_PASSWORD_FILE")"
+    [ -n "$password" ] || die "keyring password file is empty: $KEYRING_PASSWORD_FILE"
+
+    case "$repetitions" in
+        1)
+            printf '%s\n' "$password" | "$@"
+            ;;
+        2)
+            printf '%s\n%s\n' "$password" "$password" | "$@"
+            ;;
+        *)
+            die "unsupported keyring password repetition count: $repetitions"
+            ;;
+    esac
 }
 
 stop_existing_node() {
@@ -219,7 +305,7 @@ install_genesis_and_configure() {
 }
 
 has_validator_key() {
-    "$BINARY" keys show "$KEY_NAME" --keyring-backend "$KEYRING_BACKEND" --home "$HOME_DIR" >/dev/null 2>&1
+    run_with_keyring_password 1 "$BINARY" keys show "$KEY_NAME" --keyring-backend "$KEYRING_BACKEND" --home "$HOME_DIR" >/dev/null 2>&1
 }
 
 ensure_validator_key() {
@@ -228,18 +314,48 @@ ensure_validator_key() {
     fi
 
     log "Creating validator account"
-    python3 - "$MNEMONIC_FILE" "$ADDRESS_FILE" "$("$BINARY" keys add "$KEY_NAME" --keyring-backend "$KEYRING_BACKEND" --home "$HOME_DIR" --output json)" <<'PYEOF'
+    local mnemonic_file=""
+    local payload=""
+    local generated_mnemonic=0
+    local tmp_seed_phrase=""
+
+    if [ -n "$MNEMONIC_SOURCE_FILE" ]; then
+        mnemonic_file="$MNEMONIC_SOURCE_FILE"
+        require_file "$mnemonic_file"
+    else
+        tmp_seed_phrase="$(mktemp "$DATA_DIR/account-seed.XXXXXX")"
+        "$BINARY" keys mnemonic >"$tmp_seed_phrase"
+        mnemonic_file="$tmp_seed_phrase"
+        generated_mnemonic=1
+    fi
+
+    payload="$(
+        run_with_keyring_password 2 \
+            "$BINARY" keys add "$KEY_NAME" \
+            --recover \
+            --source "$mnemonic_file" \
+            --keyring-backend "$KEYRING_BACKEND" \
+            --home "$HOME_DIR" \
+            --output json
+    )"
+
+    python3 - "$ADDRESS_FILE" "$payload" <<'PYEOF'
 from pathlib import Path
 import json
 import sys
 
-mnemonic_path = Path(sys.argv[1])
-address_path = Path(sys.argv[2])
-payload = json.loads(sys.argv[3])
-mnemonic_path.write_text(payload["mnemonic"] + "\n", encoding="utf-8")
+address_path = Path(sys.argv[1])
+payload = json.loads(sys.argv[2])
 address_path.write_text(payload["address"] + "\n", encoding="utf-8")
-mnemonic_path.chmod(0o600)
 PYEOF
+
+    if [ "$generated_mnemonic" -eq 1 ]; then
+        echo
+        echo "New validator mnemonic (store offline now; it will not be written to disk again):"
+        cat "$tmp_seed_phrase"
+        echo
+        rm -f "$tmp_seed_phrase"
+    fi
 }
 
 require_validator_key() {
@@ -247,11 +363,11 @@ require_validator_key() {
 }
 
 account_address() {
-    "$BINARY" keys show "$KEY_NAME" -a --keyring-backend "$KEYRING_BACKEND" --home "$HOME_DIR"
+    run_with_keyring_password 1 "$BINARY" keys show "$KEY_NAME" -a --keyring-backend "$KEYRING_BACKEND" --home "$HOME_DIR"
 }
 
 validator_address() {
-    "$BINARY" keys show "$KEY_NAME" --bech val -a --keyring-backend "$KEYRING_BACKEND" --home "$HOME_DIR"
+    run_with_keyring_password 1 "$BINARY" keys show "$KEY_NAME" --bech val -a --keyring-backend "$KEYRING_BACKEND" --home "$HOME_DIR"
 }
 
 consensus_pubkey() {
@@ -302,7 +418,7 @@ submit_create_validator() {
 }
 EOF
 
-    "$BINARY" tx staking create-validator "$validator_json" \
+    run_with_keyring_password 1 "$BINARY" tx staking create-validator "$validator_json" \
         --from "$KEY_NAME" \
         --keyring-backend "$KEYRING_BACKEND" \
         --home "$HOME_DIR" \
@@ -322,13 +438,14 @@ print_init_summary() {
     echo "  Account address:   $(cat "$ADDRESS_FILE")"
     echo "  Validator address: $(cat "$VALOPER_FILE")"
     echo "  Consensus pubkey:  $CONSENSUS_PUBKEY_FILE"
-    echo "  Mnemonic:          $MNEMONIC_FILE"
+    echo "  Keyring backend:   $KEYRING_BACKEND"
     echo "  Peer:              $(cat "$PEER_INFO_FILE")"
     echo
     echo "Next steps:"
-    echo "  1. Fund the account address shown above."
-    echo "  2. Run: COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator"
-    echo "  3. Run: ./start_validator_node.sh start"
+    echo "  1. Store the mnemonic offline if a new account was generated."
+    echo "  2. Fund the account address shown above."
+    echo "  3. Run: COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator"
+    echo "  4. Run: ./start_validator_node.sh start"
     echo
 }
 
@@ -348,6 +465,7 @@ command_init() {
     ensure_runtime_prereqs
     ensure_home_exists
     install_genesis_and_configure
+    require_keyring_password_file
     ensure_validator_key
     write_peer_info
     write_validator_metadata
@@ -357,6 +475,7 @@ command_init() {
 command_create_validator() {
     ensure_runtime_prereqs
     require_initialized_home
+    require_keyring_password_file
     require_validator_key
     [ -n "$COMETBFT_RPC" ] || die "COMETBFT_RPC must be set, for example COMETBFT_RPC=http://127.0.0.1:26657"
 
@@ -393,6 +512,7 @@ start_node() {
 command_start() {
     ensure_runtime_prereqs
     require_initialized_home
+    require_keyring_password_file
     require_validator_key
     install_genesis_and_configure
     write_peer_info
@@ -432,7 +552,6 @@ Expected files in the script directory:
 
 Runtime data:
   - data/node
-  - data/validator.mnemonic
   - data/validator.address
   - data/validator.valoper
   - data/validator.consensus_pubkey.json
@@ -441,11 +560,14 @@ Runtime data:
 
 Typical flow:
   1. ./start_validator_node.sh init
-  2. Fund the generated account address
-  3. COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
-  4. ./start_validator_node.sh start
+  2. Store the printed mnemonic offline (only when a new account is generated)
+  3. Fund the generated account address
+  4. COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
+  5. ./start_validator_node.sh start
 
 Optional:
+  - set KEYRING_PASSWORD_FILE=/path/to/passphrase when using the default file keyring backend
+  - set MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt to import an existing validator account
   - set P2P_EXTERNAL_ADDRESS=host:26656 only on publicly reachable nodes
 EOF
 }

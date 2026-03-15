@@ -25,6 +25,8 @@ MONIKER="${MONIKER:-axon-sync}"
 
 AXOND_DOWNLOAD_URL_LINUX_AMD64="${AXOND_DOWNLOAD_URL_LINUX_AMD64:-https://assets.axonchain.ai/axond/latest/axond_linux_amd64}"
 AXOND_DOWNLOAD_URL_LINUX_ARM64="${AXOND_DOWNLOAD_URL_LINUX_ARM64:-https://assets.axonchain.ai/axond/latest/axond_linux_arm64}"
+AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64:-https://assets.axonchain.ai/axond/latest/axond_linux_amd64.sha256}"
+AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64:-https://assets.axonchain.ai/axond/latest/axond_linux_arm64.sha256}"
 
 log() {
     printf '==> %s\n' "$*"
@@ -61,16 +63,63 @@ download_url() {
     esac
 }
 
+checksum_url() {
+    case "$(platform_key)" in
+        linux/amd64) printf '%s\n' "$AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64" ;;
+        linux/arm64) printf '%s\n' "$AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64" ;;
+        *) die "unsupported platform: $(platform_key)" ;;
+    esac
+}
+
+checksum_tool() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf 'sha256sum\n'
+        return 0
+    fi
+    if command -v shasum >/dev/null 2>&1; then
+        printf 'shasum\n'
+        return 0
+    fi
+    die "missing required command: sha256sum or shasum"
+}
+
+verify_checksum() {
+    local file_path="$1"
+    local checksum_path="$2"
+    local expected=""
+
+    expected="$(awk 'NF {print $1; exit}' "$checksum_path")"
+    [ -n "$expected" ] || die "checksum file is empty: $checksum_path"
+
+    case "$(checksum_tool)" in
+        sha256sum)
+            [ "$(sha256sum "$file_path" | awk '{print $1}')" = "$expected" ] || die "sha256 mismatch for $file_path"
+            ;;
+        shasum)
+            [ "$(shasum -a 256 "$file_path" | awk '{print $1}')" = "$expected" ] || die "sha256 mismatch for $file_path"
+            ;;
+    esac
+}
+
 ensure_binary() {
     if [ -x "$BINARY" ]; then
         return 0
     fi
 
     need_cmd curl
-    mkdir -p "$SCRIPT_DIR"
+    local tmp_binary=""
+    local tmp_checksum=""
+    tmp_binary="$(mktemp "$SCRIPT_DIR/.axond.XXXXXX")"
+    tmp_checksum="$(mktemp "$SCRIPT_DIR/.axond.sha256.XXXXXX")"
+    trap 'rm -f "$tmp_binary" "$tmp_checksum"' RETURN
     log "Downloading axond binary"
-    curl -fsSL "$(download_url)" -o "$BINARY"
+    curl -fsSL "$(download_url)" -o "$tmp_binary"
+    curl -fsSL "$(checksum_url)" -o "$tmp_checksum"
+    verify_checksum "$tmp_binary" "$tmp_checksum"
+    mv "$tmp_binary" "$BINARY"
     chmod 0755 "$BINARY"
+    rm -f "$tmp_checksum"
+    trap - RETURN
 }
 
 require_file() {

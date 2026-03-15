@@ -33,7 +33,7 @@ ops
 # Protobuf generated (keep committed - needed for build)
 # *.pb.go
 # *.pb.gw.go
-
+.local_run
 # Environment
 .env
 .env.local

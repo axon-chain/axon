@@ -109,8 +109,17 @@ class AgentClient:
         self._require_account()
         stake_wei = int(stake_axon) * ONE_AXON
         tx = self._registry.functions.register(
-            capabilities, model, stake_wei
-        ).build_transaction(self._tx_params())
+            capabilities, model
+        ).build_transaction(self._tx_params(value=stake_wei))
+        return self._send_tx(tx)
+
+    def add_stake(self, stake_axon: int) -> str:
+        """Add more stake to an existing AI Agent."""
+        self._require_account()
+        stake_wei = int(stake_axon) * ONE_AXON
+        tx = self._registry.functions.addStake().build_transaction(
+            self._tx_params(value=stake_wei)
+        )
         return self._send_tx(tx)
 
     def update_agent(self, capabilities: str, model: str) -> str:

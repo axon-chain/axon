@@ -12,7 +12,8 @@ Axon 是一条面向 AI Agent 的通用公链，具备独立 L1 网络、完整 
 
 | 项目 | 值 |
 |------|-----|
-| Chain ID (EVM) | `9001` |
+| Cosmos Chain ID | `axon_8210-1` |
+| Chain ID (EVM) | `8210` |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656` |
 | Bootstrap Peer | `65c18fb46f34cb0bd8430423491e5a36dea15aa2@mainnet-node.axonchain.ai:26656` |
@@ -20,14 +21,7 @@ Axon 是一条面向 AI Agent 的通用公链，具备独立 L1 网络、完整 
 | Bootstrap Peers 文件 | `docs/mainnet/bootstrap_peers.txt` |
 | 原生代币 | `AXON` |
 
-仓库当前公开的是对外 `EVM JSON-RPC` 接入点和 P2P 引导节点。
-
-为什么会有两类 RPC：
-
-- `EVM JSON-RPC`：给钱包、MetaMask、合约和以太坊兼容客户端使用
-- `CometBFT RPC`：仅给节点运维和 Cosmos/CometBFT 侧维护操作使用
-
-普通用户应连接 Axon 的 `EVM JSON-RPC`。`CometBFT RPC` 不属于面对钱包用户的公开接入信息。
+仓库当前公开的是对外 `EVM JSON-RPC` 接入点，以及给节点发现和同步使用的 P2P 引导节点。
 
 ## MetaMask
 
@@ -37,10 +31,20 @@ Axon 是一条面向 AI Agent 的通用公链，具备独立 L1 网络、完整 
 |------|----|
 | 网络名称 | `Axon` |
 | RPC URL | `https://mainnet-rpc.axonchain.ai/` |
-| Chain ID | `9001` |
+| Chain ID | `8210` |
 | 代币符号 | `AXON` |
 
-MetaMask 使用的是 EVM 网络标识，因此面向钱包用户的正确链 ID 是 `9001`。
+MetaMask 使用的是 EVM 网络标识，因此面向钱包用户的正确链 ID 是 `8210`。
+
+## Chain ID 与创世块
+
+- 当前发布的 Axon 主网创世文件已经将 Cosmos Chain ID 固定为 `axon_8210-1`，主网节点必须使用这个值。
+- 面向钱包和以太坊兼容工具的 EVM Chain ID 是 `8210`。MetaMask 等客户端签名和防重放使用的是这个值。
+- 如果你是从源码生成一条全新的网络创世块，需要同时选择两类 ID，并在所有节点上保持一致：
+  - 一个全局唯一的 Cosmos Chain ID，通常形如 `axon_<network>-1`
+  - 一个未被占用的整数型 EVM Chain ID
+- Cosmos Chain ID 通过 `axond init --chain-id <cosmos-chain-id>` 设置，并最终写入 `genesis.json` 根字段 `chain_id`。
+- 新的公网网络不要复用已有公网 EVM Chain ID。
 
 ## 主网参数
 
@@ -49,7 +53,7 @@ MetaMask 使用的是 EVM 网络标识，因此面向钱包用户的正确链 ID
 | 参数 | 值 |
 |------|----|
 | Cosmos Chain ID | `axon_8210-1` |
-| EVM Chain ID | `9001` |
+| EVM Chain ID | `8210` |
 | EVM 原生最小单位 | `aaxon` |
 | 对外显示代币 | `AXON` |
 | 初始供应量 | `0` |
@@ -196,7 +200,7 @@ npx hardhat test
 如需覆盖构建镜像，可设置：
 
 ```bash
-PACKAGING_DOCKER_IMAGE=golang:1.25-bookworm bash packaging/build_release_matrix.sh --version v1.0.0
+PACKAGING_DOCKER_IMAGE=golang:1.25.0-trixie bash packaging/build_release_matrix.sh --version v1.0.0
 ```
 
 在 Linux 上校验校验和：
@@ -240,6 +244,8 @@ curl -fsSLo start_sync_node.sh https://raw.githubusercontent.com/axon-chain/axon
 curl -fsSLo genesis.json https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/genesis.json
 curl -fsSLo bootstrap_peers.txt https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/bootstrap_peers.txt
 chmod 0755 start_validator_node.sh start_sync_node.sh
+printf 'replace-with-a-strong-passphrase\n' > keyring.pass
+chmod 0600 keyring.pass
 ```
 
 本机直接执行：
@@ -251,10 +257,10 @@ cd /opt/axon-node
 
 ```bash
 cd /opt/axon-node
-./start_validator_node.sh init
+KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init
 # 向输出的账户地址转入资金
-COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
-./start_validator_node.sh start
+KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
+KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh start
 ```
 
 Docker 执行：
@@ -271,7 +277,7 @@ docker run --rm -it \
   -p 9090:9090 \
   --entrypoint bash \
   debian:trixie-slim \
-  -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps && ./start_sync_node.sh'
+  -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps coreutils && ./start_sync_node.sh'
 ```
 
 ```bash
@@ -286,7 +292,7 @@ docker run --rm -it \
   -p 9090:9090 \
   --entrypoint bash \
   debian:trixie-slim \
-  -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps && ./start_validator_node.sh init'
+  -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps coreutils && KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init'
 ```
 
 `./start_validator_node.sh create-validator` 和 `./start_validator_node.sh start` 也使用同样的 Docker 包装方式，只有 `create-validator` 这一步需要传入 `COMETBFT_RPC`。
@@ -294,11 +300,15 @@ docker run --rm -it \
 运行特性：
 
 - 两个脚本都以脚本自身目录为基准解析 `axond`、`genesis.json`、`bootstrap_peers.txt` 和 `data/`
-- 如果 `./axond` 不存在，脚本会通过内置下载地址常量自动获取最新二进制
+- 如果 `./axond` 不存在，脚本会通过内置下载地址常量自动获取最新二进制，并在使用前校验配套的 SHA-256 摘要文件
+- 对于当前发布的主网文件，`CHAIN_ID` 保持默认的 `axon_8210-1` 即可
+- 如果是你自己生成一条全新网络的创世块，`CHAIN_ID` 必须与执行 `axond init --chain-id ...` 时使用的 Cosmos Chain ID 完全一致
 - 普通仅出站连接的节点不要设置 `P2P_EXTERNAL_ADDRESS`，这样不会向其他节点广播本地不可解析的 hostname
 - 只有需要接受其他节点入站连接的公网节点，才设置 `P2P_EXTERNAL_ADDRESS=host:26656`
-- `./start_validator_node.sh init` 会生成验证者账户，并写入 `data/validator.mnemonic`、`data/validator.address`、`data/validator.valoper`、`data/validator.consensus_pubkey.json` 和 `data/peer_info.txt`
-- `./start_validator_node.sh create-validator` 需要账户已充值，并提供可访问的 `COMETBFT_RPC`，例如 `http://127.0.0.1:26657`
+- `./start_validator_node.sh init` 会创建或导入验证者账户；如果生成的是新账户，只会在标准输出中打印一次助记词，同时写入 `data/validator.address`、`data/validator.valoper`、`data/validator.consensus_pubkey.json` 和 `data/peer_info.txt`
+- 验证者脚本默认使用 `KEYRING_BACKEND=file`；执行验证者命令前需要设置 `KEYRING_PASSWORD_FILE`
+- 如需导入已有验证者账户，可设置 `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt`
+- `./start_validator_node.sh create-validator` 需要账户已充值、已设置 `KEYRING_PASSWORD_FILE`，并提供可访问的本机或自托管 `COMETBFT_RPC`，例如 `http://127.0.0.1:26657`
 - `./start_validator_node.sh start` 只负责启动本地验证者节点进程
 - `packaging/package_axond.sh` 生成的 release 包会直接包含 `axond`、两个启动脚本、`genesis.json` 和 `bootstrap_peers.txt`
 - 节点默认服务端口统一为：`P2P 26656`、`CometBFT RPC 26657`、`JSON-RPC 8545`、`JSON-RPC WS 8546`、`REST API 1317`、`gRPC 9090`
@@ -326,7 +336,7 @@ import os
 
 client = AgentClient(os.environ["AXON_RPC_URL"])
 client.set_account(os.environ["AXON_PRIVATE_KEY"])
-tx = client.register_agent("nlp,reasoning", "gpt-4", stake_axon=100)
+tx = client.register_agent("nlp,reasoning", "axon-demo-model", stake_axon=100)
 ```
 
 TypeScript SDK 安装：
@@ -343,8 +353,10 @@ import { AgentClient } from "@axon-chain/sdk";
 
 const client = new AgentClient(process.env.AXON_RPC_URL!);
 client.connect(process.env.AXON_PRIVATE_KEY!);
-const tx = await client.registerAgent("nlp,reasoning", "gpt-4", "100");
+const tx = await client.registerAgent("nlp,reasoning", "axon-demo-model", "100");
 await tx.wait();
+const addStakeTx = await client.addStake("500");
+await addStakeTx.wait();
 ```
 
 相关实现：

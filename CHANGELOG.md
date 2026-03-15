@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Economic Model
+- AI performance rewards now distribute by eligible stake weight instead of per-Agent count.
+- Contribution reward caps now scale by stake share, closing the fixed per-Agent `2%` Sybil bypass.
+- Registered Agents can now increase stake in place via `AddStake`.
+
+### EVM / SDK
+- `IAgentRegistry.register(...)` and `IAgentRegistry.addStake()` now use `payable` + `msg.value` semantics consistently across the precompile and both SDKs.
+
+### Design
+- Added ADR 0001 for Agent economics hardening and the deferred privacy/ZK roadmap.
+
 ## v1.0.0 - Initial Public Release
 
 ### Core Chain

@@ -27,6 +27,7 @@ const (
 	IsAgentMethod     = "isAgent"
 	GetAgentMethod    = "getAgent"
 	RegisterMethod    = "register"
+	AddStakeMethod    = "addStake"
 	UpdateAgentMethod = "updateAgent"
 	HeartbeatMethod   = "heartbeat"
 	DeregisterMethod  = "deregister"
@@ -34,6 +35,7 @@ const (
 	GasIsAgent    = 200
 	GasGetAgent   = 1000
 	GasRegister   = 50000
+	GasAddStake   = 30000
 	GasUpdate     = 10000
 	GasHeartbeat  = 5000
 	GasDeregister = 20000
@@ -79,6 +81,8 @@ func (p Precompile) RequiredGas(input []byte) uint64 {
 		return GasGetAgent
 	case RegisterMethod:
 		return GasRegister
+	case AddStakeMethod:
+		return GasAddStake
 	case UpdateAgentMethod:
 		return GasUpdate
 	case HeartbeatMethod:
@@ -98,7 +102,7 @@ func (p Precompile) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]by
 
 func (p Precompile) IsTransaction(method *abi.Method) bool {
 	switch method.Name {
-	case RegisterMethod, UpdateAgentMethod, HeartbeatMethod, DeregisterMethod:
+	case RegisterMethod, AddStakeMethod, UpdateAgentMethod, HeartbeatMethod, DeregisterMethod:
 		return true
 	default:
 		return false
@@ -118,6 +122,8 @@ func (p Precompile) execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 		return p.getAgent(ctx, method, args)
 	case RegisterMethod:
 		return p.register(ctx, evm, contract, method, args)
+	case AddStakeMethod:
+		return p.addStake(ctx, evm, contract, method)
 	case UpdateAgentMethod:
 		return p.updateAgent(ctx, evm, contract, method, args)
 	case HeartbeatMethod:
@@ -198,6 +204,25 @@ func (p Precompile) register(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 		Model:        model,
 		Stake:        stakeAmount,
 	}, precompileAddr)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = resp
+	return method.Outputs.Pack()
+}
+
+func (p Precompile) addStake(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method) ([]byte, error) {
+	msgValue := contract.Value()
+	if msgValue == nil || msgValue.IsZero() {
+		return nil, fmt.Errorf("must send AXON as msg.value for addStake")
+	}
+
+	caller := p.resolveAgentSender(ctx, evm, contract)
+	stakeAmount := sdk.NewCoin("aaxon", sdkmath.NewIntFromBigInt(msgValue.ToBig()))
+	precompileAddr := sdk.AccAddress(address.Bytes())
+
+	resp, err := p.keeper.AddStakeToAgent(ctx, caller.String(), stakeAmount, precompileAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -307,6 +332,13 @@ const abiJSON = `[
 			{"name": "model", "type": "string"}
 		],
 		"name": "register",
+		"outputs": [],
+		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "addStake",
 		"outputs": [],
 		"stateMutability": "payable",
 		"type": "function"

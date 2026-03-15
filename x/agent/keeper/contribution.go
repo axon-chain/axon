@@ -145,10 +145,12 @@ func (k Keeper) DistributeContributionRewards(ctx sdk.Context, epoch uint64) {
 	type scoredAgent struct {
 		address string
 		score   int64
+		stake   *big.Int
 	}
 
 	var agents []scoredAgent
 	totalScore := int64(0)
+	totalEligibleStake := new(big.Int)
 	currentBlock := ctx.BlockHeight()
 
 	k.IterateAgents(ctx, func(agent types.Agent) bool {
@@ -171,26 +173,32 @@ func (k Keeper) DistributeContributionRewards(ctx sdk.Context, epoch uint64) {
 			return false
 		}
 
-		agents = append(agents, scoredAgent{address: agent.Address, score: score})
+		stake := agent.StakeAmount.Amount.BigInt()
+		if stake.Sign() <= 0 {
+			return false
+		}
+
+		agents = append(agents, scoredAgent{address: agent.Address, score: score, stake: new(big.Int).Set(stake)})
 		totalScore += score
+		totalEligibleStake.Add(totalEligibleStake, stake)
 		return false
 	})
 
-	if totalScore <= 0 || len(agents) == 0 {
+	if totalScore <= 0 || len(agents) == 0 || totalEligibleStake.Sign() <= 0 {
 		return
 	}
 
 	poolBig := pool.Amount.BigInt()
-	maxPerAgent := new(big.Int).Mul(poolBig, big.NewInt(MaxSharePerAgentBPS))
-	maxPerAgent.Div(maxPerAgent, big.NewInt(10000))
-
 	distributed := sdkmath.ZeroInt()
 
 	for _, a := range agents {
 		share := new(big.Int).Mul(poolBig, big.NewInt(a.score))
 		share.Div(share, big.NewInt(totalScore))
 
-		// Cap at 2% of pool
+		// Cap at 2% × stake share, so splitting stake across more Agents
+		// does not increase aggregate contribution rewards.
+		maxPerAgent := contributionRewardCap(poolBig, a.stake, totalEligibleStake)
+
 		if share.Cmp(maxPerAgent) > 0 {
 			share.Set(maxPerAgent)
 		}
@@ -259,6 +267,21 @@ func (k Keeper) calculateContributionScore(ctx sdk.Context, epoch uint64, agent 
 	}
 
 	return score
+}
+
+func contributionRewardCap(poolAmount, agentStake, totalEligibleStake *big.Int) *big.Int {
+	if poolAmount == nil || agentStake == nil || totalEligibleStake == nil {
+		return new(big.Int)
+	}
+	if poolAmount.Sign() <= 0 || agentStake.Sign() <= 0 || totalEligibleStake.Sign() <= 0 {
+		return new(big.Int)
+	}
+
+	capAmount := new(big.Int).Mul(poolAmount, big.NewInt(MaxSharePerAgentBPS))
+	capAmount.Mul(capAmount, agentStake)
+	capAmount.Div(capAmount, big.NewInt(10000))
+	capAmount.Div(capAmount, totalEligibleStake)
+	return capAmount
 }
 
 // Tracking helpers for contribution metrics

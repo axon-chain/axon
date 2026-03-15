@@ -200,7 +200,7 @@ Each release directory contains `SHA256SUMS` and `BUILD_REPORT.md`.
 Override the builder image if required:
 
 ```bash
-PACKAGING_DOCKER_IMAGE=golang:1.25.0-trixie bash packaging/build_release_matrix.sh --version v1.0.0
+PACKAGING_DOCKER_IMAGE=golang:1.25.7-trixie bash packaging/build_release_matrix.sh --version v1.0.0
 ```
 
 Verify checksums on Linux:

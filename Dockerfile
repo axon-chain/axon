@@ -1,5 +1,5 @@
 # ── Stage 1: Build ──────────────────────────────────────────
-FROM golang:1.25-trixie AS builder
+FROM golang:1.25.7-trixie AS builder
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git make gcc libc-dev && \

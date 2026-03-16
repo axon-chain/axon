@@ -43,10 +43,10 @@ jobs:
       - name: Build release matrix
         shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}" \
+          make package-all \
+            VERSION="${{ steps.version.outputs.version }}" \
             OUT_DIR="${{ github.workspace }}/dist/releases" \
-            RELEASE_NOTES_FILE="${{ github.workspace }}/CHANGELOG.md" \
-            make package-all
+            RELEASE_NOTES_FILE="${{ github.workspace }}/CHANGELOG.md"
 
       - name: Prepare direct-download binaries
         shell: bash

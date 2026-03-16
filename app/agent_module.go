@@ -77,6 +77,7 @@ func (am AgentAppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data 
 	}
 	for _, agent := range gs.Agents {
 		am.keeper.SetAgent(ctx, agent)
+		am.keeper.BootstrapLegacyReputation(ctx, agent.Address, agent.Reputation)
 	}
 
 	var extra genesisExtra

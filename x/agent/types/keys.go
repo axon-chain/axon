@@ -25,7 +25,13 @@ const (
 
 	TotalBlockRewardsMintedKey = "TotalBlockRewardsMinted"
 	TotalContributionMintedKey = "TotalContributionMinted"
+
+	PendingReduceStakeKeyPrefix = "PendingReduceStake/"
 )
+
+func KeyPendingReduceStake(address string) []byte {
+	return []byte(PendingReduceStakeKeyPrefix + address)
+}
 
 func KeyAgent(address string) []byte {
 	return []byte(AgentKeyPrefix + address)

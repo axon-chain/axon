@@ -129,11 +129,19 @@ import (
 	upgradetypes "github.com/cosmos/cosmos-sdk/x/upgrade/types"
 
 	axonconfig "github.com/axon-chain/axon/app/config"
+	poseidonprecompile "github.com/axon-chain/axon/precompiles/poseidon"
+	privateidentityprecompile "github.com/axon-chain/axon/precompiles/private_identity"
+	privatetransferprecompile "github.com/axon-chain/axon/precompiles/private_transfer"
 	registryprecompile "github.com/axon-chain/axon/precompiles/registry"
+	reportprecompile "github.com/axon-chain/axon/precompiles/report"
 	reputationprecompile "github.com/axon-chain/axon/precompiles/reputation"
 	walletprecompile "github.com/axon-chain/axon/precompiles/wallet"
+	zkverifierprecompile "github.com/axon-chain/axon/precompiles/zk_verifier"
 	agentkeeper "github.com/axon-chain/axon/x/agent/keeper"
 	agenttypes "github.com/axon-chain/axon/x/agent/types"
+	"github.com/axon-chain/axon/x/privacy"
+	privacykeeper "github.com/axon-chain/axon/x/privacy/keeper"
+	privacytypes "github.com/axon-chain/axon/x/privacy/types"
 )
 
 func init() {
@@ -189,7 +197,8 @@ type AxonApp struct {
 	EVMMempool      *evmmempool.ExperimentalEVMMempool
 
 	// Axon custom keepers
-	AgentKeeper agentkeeper.Keeper
+	AgentKeeper   agentkeeper.Keeper
+	PrivacyKeeper privacykeeper.Keeper
 
 	ModuleManager      *module.Manager
 	BasicModuleManager module.BasicManager
@@ -245,6 +254,7 @@ func NewAxonApp(
 		evmtypes.StoreKey, feemarkettypes.StoreKey, erc20types.StoreKey,
 		// Axon
 		agenttypes.StoreKey,
+		privacytypes.StoreKey,
 	)
 	oKeys := storetypes.NewObjectStoreKeys(banktypes.ObjectStoreKey, evmtypes.ObjectKey)
 
@@ -451,6 +461,12 @@ func NewAxonApp(
 		app.StakingKeeper,
 	)
 
+	app.PrivacyKeeper = privacykeeper.NewKeeper(
+		appCodec,
+		keys[privacytypes.StoreKey],
+		app.BankKeeper,
+	)
+
 	app.EVMKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], oKeys[evmtypes.ObjectKey], nonTransientKeys,
 		authtypes.NewModuleAddress(govtypes.ModuleName),
@@ -475,6 +491,7 @@ func NewAxonApp(
 			app.SlashingKeeper,
 			appCodec,
 			app.AgentKeeper,
+			app.PrivacyKeeper,
 		),
 	)
 
@@ -534,6 +551,9 @@ func NewAxonApp(
 	// ---- Axon Agent AppModule (adaptor for new SDK) ----
 	agentAppModule := NewAgentAppModule(appCodec, app.AgentKeeper, app.BankKeeper, app.FeeMarketKeeper)
 
+	// ---- Privacy Module ----
+	privacyAppModule := privacy.NewAppModule(app.PrivacyKeeper)
+
 	// ---- Module Manager ----
 
 	app.ModuleManager = module.NewManager(
@@ -561,6 +581,7 @@ func NewAxonApp(
 		erc20.NewAppModule(app.Erc20Keeper, app.AccountKeeper),
 		// Axon
 		agentAppModule,
+		privacyAppModule,
 	)
 
 	app.BasicModuleManager = module.NewBasicManagerFromManager(
@@ -589,6 +610,7 @@ func NewAxonApp(
 		erc20types.ModuleName, feemarkettypes.ModuleName,
 		evmtypes.ModuleName,
 		agenttypes.ModuleName, // must run before distribution to burn base fees first
+		privacytypes.ModuleName,
 		distrtypes.ModuleName, slashingtypes.ModuleName,
 		evidencetypes.ModuleName, stakingtypes.ModuleName,
 		authtypes.ModuleName, banktypes.ModuleName, govtypes.ModuleName, genutiltypes.ModuleName,
@@ -610,6 +632,7 @@ func NewAxonApp(
 		feegrant.ModuleName, upgradetypes.ModuleName, consensusparamtypes.ModuleName,
 		vestingtypes.ModuleName,
 		agenttypes.ModuleName,
+		privacytypes.ModuleName,
 	)
 
 	genesisModuleOrder := []string{
@@ -622,6 +645,7 @@ func NewAxonApp(
 		genutiltypes.ModuleName, evidencetypes.ModuleName, authz.ModuleName,
 		feegrant.ModuleName, upgradetypes.ModuleName, vestingtypes.ModuleName,
 		agenttypes.ModuleName,
+		privacytypes.ModuleName,
 	}
 	app.ModuleManager.SetOrderInitGenesis(genesisModuleOrder...)
 	app.ModuleManager.SetOrderExportGenesis(genesisModuleOrder...)
@@ -933,6 +957,7 @@ func axonStaticPrecompiles(
 	slashingKeeper slashingkeeper.Keeper,
 	cdc codec.Codec,
 	agentKeeper agentkeeper.Keeper,
+	privKeeper privacykeeper.Keeper,
 ) map[common.Address]ethvm.PrecompiledContract {
 	defaults := precompiletypes.DefaultStaticPrecompiles(
 		stakingKeeper, distrKeeper, bankKeeper, erc20Keeper,
@@ -957,6 +982,40 @@ func axonStaticPrecompiles(
 		panic(fmt.Sprintf("failed to init wallet precompile: %v", err))
 	}
 	defaults[wal.Address()] = wal
+
+	rpt, err := reportprecompile.NewPrecompile(agentKeeper, bankKeeper)
+	if err != nil {
+		panic(fmt.Sprintf("failed to init report precompile: %v", err))
+	}
+	defaults[rpt.Address()] = rpt
+
+	// P2: Poseidon hash (0x0810)
+	pos, err := poseidonprecompile.NewPrecompile(bankKeeper)
+	if err != nil {
+		panic(fmt.Sprintf("failed to init poseidon precompile: %v", err))
+	}
+	defaults[pos.Address()] = pos
+
+	// P3: Private Transfer / Shielded Pool (0x0811)
+	pt, err := privatetransferprecompile.NewPrecompile(privKeeper, bankKeeper)
+	if err != nil {
+		panic(fmt.Sprintf("failed to init private transfer precompile: %v", err))
+	}
+	defaults[pt.Address()] = pt
+
+	// P4: Private Identity (0x0812)
+	pi, err := privateidentityprecompile.NewPrecompile(privKeeper, agentKeeper, bankKeeper)
+	if err != nil {
+		panic(fmt.Sprintf("failed to init private identity precompile: %v", err))
+	}
+	defaults[pi.Address()] = pi
+
+	// P5: ZK Verifier (0x0813)
+	zk, err := zkverifierprecompile.NewPrecompile(privKeeper, bankKeeper)
+	if err != nil {
+		panic(fmt.Sprintf("failed to init zk verifier precompile: %v", err))
+	}
+	defaults[zk.Address()] = zk
 
 	return defaults
 }

@@ -12,6 +12,7 @@ from axon.precompiles import (
 
 AXON_DECIMALS = 18
 ONE_AXON = 10 ** AXON_DECIMALS
+PRECOMPILE_TX_GAS_LIMIT = 2_000_000
 
 
 class AgentClient:
@@ -342,7 +343,7 @@ class AgentClient:
         return {
             "from": self._account.address,
             "nonce": self.w3.eth.get_transaction_count(self._account.address),
-            "gas": 500_000,
+            "gas": PRECOMPILE_TX_GAS_LIMIT,
             "gasPrice": self.w3.eth.gas_price or 0,
             "chainId": self.chain_id,
             "value": value,

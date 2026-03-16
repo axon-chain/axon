@@ -17,6 +17,7 @@ import (
 	corevm "github.com/ethereum/go-ethereum/core/vm"
 
 	agenttypes "github.com/axon-chain/axon/x/agent/types"
+	privacytypes "github.com/axon-chain/axon/x/privacy/types"
 )
 
 func BlockedAddresses() map[string]bool {
@@ -37,6 +38,11 @@ func BlockedAddresses() map[string]bool {
 		"0x0000000000000000000000000000000000000801": true,
 		"0x0000000000000000000000000000000000000802": true,
 		"0x0000000000000000000000000000000000000803": true,
+		"0x0000000000000000000000000000000000000807": true,
+		"0x0000000000000000000000000000000000000810": true,
+		"0x0000000000000000000000000000000000000811": true,
+		"0x0000000000000000000000000000000000000812": true,
+		"0x0000000000000000000000000000000000000813": true,
 	}
 
 	blockedPrecompilesHex := vmtypes.AvailableStaticPrecompiles
@@ -69,7 +75,8 @@ var maccPerms = map[string][]string{
 	erc20types.ModuleName:     {authtypes.Minter, authtypes.Burner},
 
 	// Axon custom modules
-	agenttypes.ModuleName: {authtypes.Minter, authtypes.Burner},
+	agenttypes.ModuleName:   {authtypes.Minter, authtypes.Burner},
+	privacytypes.ModuleName: nil,
 }
 
 func GetMaccPerms() map[string][]string {

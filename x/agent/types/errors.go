@@ -24,4 +24,8 @@ var (
 	ErrInvalidStakeDenom          = errors.Register(ModuleName, 1118, "invalid stake denom")
 	ErrStakeAmountMustBePositive  = errors.Register(ModuleName, 1119, "stake amount must be positive")
 	ErrValidatorRequired          = errors.Register(ModuleName, 1120, "operation requires an active bonded validator")
+	ErrBelowMinimumStake          = errors.Register(ModuleName, 1121, "stake would fall below minimum registration stake")
+	ErrPendingReduceExists        = errors.Register(ModuleName, 1122, "a pending stake reduction already exists")
+	ErrNoReducePending            = errors.Register(ModuleName, 1123, "no pending stake reduction to claim")
+	ErrReduceNotUnlocked          = errors.Register(ModuleName, 1124, "pending stake reduction has not reached unlock height")
 )

@@ -89,6 +89,7 @@ func (k msgServer) Register(goCtx context.Context, msg *types.MsgRegister) (*typ
 	}
 
 	k.SetAgent(ctx, agent)
+	k.BootstrapLegacyReputation(ctx, agent.Address, agent.Reputation)
 	k.IncrementDailyRegisterCount(ctx, msg.Sender)
 
 	ctx.EventManager().EmitEvent(sdk.NewEvent(
@@ -198,6 +199,22 @@ func (k msgServer) Deregister(goCtx context.Context, msg *types.MsgDeregister) (
 	))
 
 	return &types.MsgDeregisterResponse{}, nil
+}
+
+func (k msgServer) ReduceStake(goCtx context.Context, msg *types.MsgReduceStake) (*types.MsgReduceStakeResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if err := k.Keeper.ReduceStakeFromAgent(ctx, msg.Sender, msg.Amount); err != nil {
+		return nil, err
+	}
+	return &types.MsgReduceStakeResponse{}, nil
+}
+
+func (k msgServer) ClaimReducedStake(goCtx context.Context, msg *types.MsgClaimReducedStake) (*types.MsgClaimReducedStakeResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+	if err := k.Keeper.ClaimReducedStake(ctx, msg.Sender); err != nil {
+		return nil, err
+	}
+	return &types.MsgClaimReducedStakeResponse{}, nil
 }
 
 func (k msgServer) SubmitAIChallengeResponse(goCtx context.Context, msg *types.MsgSubmitAIChallengeResponse) (*types.MsgSubmitAIChallengeResponseResponse, error) {

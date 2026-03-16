@@ -42,7 +42,7 @@ func DetectCheatersForTest(k Keeper, responses []types.AIResponse) map[string]bo
 }
 
 func ContributionRewardCapForTest(poolAmount, agentStake, totalEligibleStake *big.Int) *big.Int {
-	return contributionRewardCap(poolAmount, agentStake, totalEligibleStake)
+	return contributionRewardCap(poolAmount, agentStake, totalEligibleStake, 200)
 }
 
 func IsActiveValidatorAddressForTest(k Keeper, ctx sdk.Context, address string) bool {

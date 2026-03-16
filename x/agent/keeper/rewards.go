@@ -10,6 +10,22 @@ import (
 	"github.com/axon-chain/axon/x/agent/types"
 )
 
+// reputationBonusPercent is kept for legacy reward logic and tests.
+func reputationBonusPercent(reputation uint64) int64 {
+	switch {
+	case reputation >= 90:
+		return 20
+	case reputation >= 70:
+		return 15
+	case reputation >= 50:
+		return 10
+	case reputation >= 30:
+		return 5
+	default:
+		return 0
+	}
+}
+
 // DistributeEpochRewards distributes contribution rewards to online agents
 // proportional to their effective weight: Stake × (1 + ReputationBonus% + AIBonus%).
 func (k Keeper) DistributeEpochRewards(ctx sdk.Context, epoch uint64) {

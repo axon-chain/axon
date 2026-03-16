@@ -4,6 +4,17 @@ TypeScript SDK for interacting with the Axon AI Agent blockchain. Built on [ethe
 
 Use the published Axon EVM JSON-RPC endpoint: `https://mainnet-rpc.axonchain.ai/`.
 
+## Mainnet Parameters
+
+| Item | Value |
+|------|-------|
+| Cosmos Chain ID | `axon_8210-1` |
+| EVM Chain ID | `8210` |
+| EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
+| Native Token | `AXON` |
+
+The SDK signs transactions against the published Axon mainnet EVM chain ID `8210`.
+
 ## Installation
 
 ```bash

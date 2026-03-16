@@ -74,28 +74,32 @@ func TestReputationZeroBurnDocumentation(t *testing.T) {
 // Deflation Path 5: AI Challenge Cheat Penalty
 // ---------------------------------------------------------------------------
 
-func TestCheatDetectionDuplicateCommitHash(t *testing.T) {
+func TestCheatDetectionDuplicateAnswers(t *testing.T) {
 	k, _, _ := setupTestKeeper(t)
 
 	responses := []types.AIResponse{
-		{ValidatorAddress: "axon1aaa", CommitHash: "hash_identical", RevealData: "answer1"},
-		{ValidatorAddress: "axon1bbb", CommitHash: "hash_identical", RevealData: "answer2"},
-		{ValidatorAddress: "axon1ccc", CommitHash: "hash_unique", RevealData: "answer3"},
+		{ValidatorAddress: "axon1aaa", CommitHash: "hash1", RevealData: "PBFT"},
+		{ValidatorAddress: "axon1bbb", CommitHash: "hash2", RevealData: "pbft"},
+		{ValidatorAddress: "axon1ccc", CommitHash: "hash3", RevealData: "  PBFT  "},
+		{ValidatorAddress: "axon1ddd", CommitHash: "hash4", RevealData: "RAFT"},
 	}
 
 	cheaters := keeper.DetectCheatersForTest(k, responses)
 
 	if !cheaters["axon1aaa"] {
-		t.Error("axon1aaa should be flagged as cheater (duplicate commit hash)")
+		t.Error("axon1aaa should be flagged as cheater (duplicate normalized answer)")
 	}
 	if !cheaters["axon1bbb"] {
-		t.Error("axon1bbb should be flagged as cheater (duplicate commit hash)")
+		t.Error("axon1bbb should be flagged as cheater (duplicate normalized answer)")
 	}
-	if cheaters["axon1ccc"] {
-		t.Error("axon1ccc should NOT be flagged (unique commit hash)")
+	if !cheaters["axon1ccc"] {
+		t.Error("axon1ccc should be flagged as cheater (duplicate normalized answer)")
 	}
-	if len(cheaters) != 2 {
-		t.Errorf("expected 2 cheaters, got %d", len(cheaters))
+	if cheaters["axon1ddd"] {
+		t.Error("axon1ddd should NOT be flagged (unique answer)")
+	}
+	if len(cheaters) != 3 {
+		t.Errorf("expected 3 cheaters, got %d", len(cheaters))
 	}
 }
 
@@ -114,17 +118,17 @@ func TestCheatDetectionNoDuplicates(t *testing.T) {
 	}
 }
 
-func TestCheatDetectionEmptyCommitHash(t *testing.T) {
+func TestCheatDetectionEmptyRevealIgnored(t *testing.T) {
 	k, _, _ := setupTestKeeper(t)
 
 	responses := []types.AIResponse{
-		{ValidatorAddress: "axon1aaa", CommitHash: "", RevealData: "a"},
-		{ValidatorAddress: "axon1bbb", CommitHash: "", RevealData: "b"},
+		{ValidatorAddress: "axon1aaa", CommitHash: "hash1", RevealData: ""},
+		{ValidatorAddress: "axon1bbb", CommitHash: "hash2", RevealData: ""},
 	}
 
 	cheaters := keeper.DetectCheatersForTest(k, responses)
 	if len(cheaters) != 0 {
-		t.Errorf("empty commit hashes should not be flagged as duplicates, got %d cheaters", len(cheaters))
+		t.Errorf("empty reveals should be ignored, got %d cheaters", len(cheaters))
 	}
 }
 

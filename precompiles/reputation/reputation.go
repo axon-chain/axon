@@ -133,7 +133,8 @@ func (p Precompile) getReputation(ctx sdk.Context, method *abi.Method, args []in
 		return nil, fmt.Errorf("invalid address argument")
 	}
 	cosmosAddr := sdk.AccAddress(addr.Bytes())
-	rep := p.keeper.GetReputation(ctx, cosmosAddr.String())
+	totalMillis := p.keeper.GetTotalReputation(ctx, cosmosAddr.String())
+	rep := uint64(totalMillis / 1000)
 	return method.Outputs.Pack(rep)
 }
 
@@ -152,7 +153,7 @@ func (p Precompile) getReputations(ctx sdk.Context, method *abi.Method, args []i
 	reps := make([]uint64, len(addrs))
 	for i, addr := range addrs {
 		cosmosAddr := sdk.AccAddress(addr.Bytes())
-		reps[i] = p.keeper.GetReputation(ctx, cosmosAddr.String())
+		reps[i] = uint64(p.keeper.GetTotalReputation(ctx, cosmosAddr.String()) / 1000)
 	}
 	return method.Outputs.Pack(reps)
 }
@@ -171,7 +172,7 @@ func (p Precompile) meetsReputation(ctx sdk.Context, method *abi.Method, args []
 	}
 
 	cosmosAddr := sdk.AccAddress(addr.Bytes())
-	rep := p.keeper.GetReputation(ctx, cosmosAddr.String())
+	rep := uint64(p.keeper.GetTotalReputation(ctx, cosmosAddr.String()) / 1000)
 	return method.Outputs.Pack(rep >= minRep)
 }
 

@@ -1,7 +1,7 @@
 {
   "app_name": "axond",
   "app_version": "v1.0.0",
-  "genesis_time": "2026-03-13T12:58:10.911058987Z",
+  "genesis_time": "2026-03-16T07:20:02.577880468Z",
   "chain_id": "axon_8210-1",
   "initial_height": 1,
   "app_hash": null,
@@ -17,7 +17,26 @@
         "heartbeat_interval": "100",
         "heartbeat_timeout": 720,
         "epoch_length": 720,
-        "ai_challenge_window": 50
+        "ai_challenge_window": 50,
+        "contribution_cap_bps": "200",
+        "alpha": "0.5",
+        "beta": "1.5",
+        "r_max": "100",
+        "l1_cap": "40",
+        "l2_cap": "30",
+        "l1_decay_per_epoch": "0.1",
+        "l2_decay_per_epoch": "0.05",
+        "l2_min_reporter_rep": "30",
+        "l2_min_account_age": "120960",
+        "l2_budget_per_agent": "0.1",
+        "l2_budget_cap": "100",
+        "l2_abuse_threshold": "50",
+        "l2_mutual_report_penalty": "0.1",
+        "l2_no_evidence_weight": "0.3",
+        "proposer_reward_bps": "2000",
+        "validator_pool_bps": "5500",
+        "reputation_pool_bps": "2500",
+        "contribution_cap_multiplier": "3.0"
       },
       "agents": []
     },
@@ -32,7 +51,7 @@
       "accounts": [
         {
           "@type": "/cosmos.auth.v1beta1.BaseAccount",
-          "address": "axon1qa846k33rku69lg4vzrxrdyztv8vcke99geg7w",
+          "address": "axon1d8l74cdp7ymj2zxv8s3l2xg3en33hluhsmrtmq",
           "pub_key": null,
           "account_number": "0",
           "sequence": "0"
@@ -49,7 +68,7 @@
       },
       "balances": [
         {
-          "address": "axon1qa846k33rku69lg4vzrxrdyztv8vcke99geg7w",
+          "address": "axon1d8l74cdp7ymj2zxv8s3l2xg3en33hluhsmrtmq",
           "coins": [
             {
               "denom": "aaxon",
@@ -152,7 +171,12 @@
         "active_static_precompiles": [
           "0x0000000000000000000000000000000000000801",
           "0x0000000000000000000000000000000000000802",
-          "0x0000000000000000000000000000000000000803"
+          "0x0000000000000000000000000000000000000803",
+          "0x0000000000000000000000000000000000000807",
+          "0x0000000000000000000000000000000000000810",
+          "0x0000000000000000000000000000000000000811",
+          "0x0000000000000000000000000000000000000812",
+          "0x0000000000000000000000000000000000000813"
         ],
         "history_serve_window": "8192",
         "extended_denom_options": {
@@ -197,10 +221,10 @@
                 },
                 "min_self_delegation": "1",
                 "delegator_address": "",
-                "validator_address": "axonvaloper1qa846k33rku69lg4vzrxrdyztv8vcke9mmatay",
+                "validator_address": "axonvaloper1d8l74cdp7ymj2zxv8s3l2xg3en33hluhwg8gc2",
                 "pubkey": {
                   "@type": "/cosmos.crypto.ed25519.PubKey",
-                  "key": "yhj/OlE2kGSbG+atqSYYlyA6Q1DZmr+hVTb4CvWG/cA="
+                  "key": "O5/s1PxzuJBvBONizp3a29qFZTMvN5GnzOMQ9Nd91YA="
                 },
                 "value": {
                   "denom": "aaxon",
@@ -208,7 +232,7 @@
                 }
               }
             ],
-            "memo": "86cbe218252518cf171d68b540758bbc2faeb27d@172.18.0.2:26656",
+            "memo": "3b780dd333bafe6b4bcc3ef5a9db3620d4db1ddc@172.18.0.2:26656",
             "timeout_height": "0",
             "unordered": false,
             "timeout_timestamp": null,
@@ -220,7 +244,7 @@
               {
                 "public_key": {
                   "@type": "/cosmos.evm.crypto.v1.ethsecp256k1.PubKey",
-                  "key": "AtQzH6h8K16mDHT+gxS9YK0cGTdRZiHhwLokzfftHPBe"
+                  "key": "ArjUKHGyQ3VxZhQVofL0nyiK02TJEygB3xXwAiIsAyyh"
                 },
                 "mode_info": {
                   "single": {
@@ -239,7 +263,7 @@
             "tip": null
           },
           "signatures": [
-            "G4c/qBk7+nag5ScrVAyifHS9ZSPSL5tFjwrBUVnC2EFcmKVFMOLiFFkZVB0j1VEvbbeIIQPzj4cqdPkcLNxiGAA="
+            "mO8eS8YH9CRsGqbYzmVpRf9n31BdnPCd5jyeANugzCBTqt2wu7d0AZbo5oh63cSOrHYjEVtacfDidJ1NKa8dPQA="
           ]
         }
       ]
@@ -337,6 +361,15 @@
         "goal_bonded": "0.670000000000000000",
         "blocks_per_year": "6311520",
         "max_supply": "0"
+      }
+    },
+    "privacy": {
+      "params": {
+        "max_shield_amount": "10000000000000000000000",
+        "pool_cap_ratio": 10,
+        "privacy_gas_multiplier": 200,
+        "vk_registration_fee": "100000000000000000000",
+        "max_known_roots": 100
       }
     },
     "slashing": {

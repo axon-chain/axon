@@ -16,14 +16,11 @@ const (
 	ContributionBaseYearlyStr = "35000000000000000000000000"
 
 	// MaxContributionSupplyStr: hard cap = 350,000,000 AXON = 350M × 10^18 aaxon
-	// Whitepaper §8.2: Agent 贡献奖励 35% = 350,000,000 AXON
+	// Whitepaper §9.4: Agent 贡献奖励 35% = 350,000,000 AXON
 	MaxContributionSupplyStr = "350000000000000000000000000"
 
 	// ContributionPhaseBlocks = 4 years per phase
 	ContributionPhaseBlocks int64 = BlocksPerYear * 4
-
-	// MaxSharePerAgent = 2% of epoch pool
-	MaxSharePerAgentBPS = 200
 
 	// MinReputationForReward — agents with rep < 20 don't participate
 	MinReputationForReward uint64 = 20
@@ -39,7 +36,7 @@ const (
 )
 
 // MintContributionRewards mints tokens for the contribution pool each block.
-// Hard-capped at 350M AXON total (whitepaper §8.2).
+// Hard-capped at 350M AXON total (whitepaper §9.4).
 func (k Keeper) MintContributionRewards(ctx sdk.Context) {
 	blockHeight := ctx.BlockHeight()
 	if blockHeight <= 1 {
@@ -188,6 +185,9 @@ func (k Keeper) DistributeContributionRewards(ctx sdk.Context, epoch uint64) {
 		return
 	}
 
+	params := k.GetParams(ctx)
+	capBps := int64(params.GetContributionCapBps())
+
 	poolBig := pool.Amount.BigInt()
 	distributed := sdkmath.ZeroInt()
 
@@ -195,9 +195,7 @@ func (k Keeper) DistributeContributionRewards(ctx sdk.Context, epoch uint64) {
 		share := new(big.Int).Mul(poolBig, big.NewInt(a.score))
 		share.Div(share, big.NewInt(totalScore))
 
-		// Cap at 2% × stake share, so splitting stake across more Agents
-		// does not increase aggregate contribution rewards.
-		maxPerAgent := contributionRewardCap(poolBig, a.stake, totalEligibleStake)
+		maxPerAgent := contributionRewardCap(poolBig, a.stake, totalEligibleStake, capBps)
 
 		if share.Cmp(maxPerAgent) > 0 {
 			share.Set(maxPerAgent)
@@ -269,15 +267,18 @@ func (k Keeper) calculateContributionScore(ctx sdk.Context, epoch uint64, agent 
 	return score
 }
 
-func contributionRewardCap(poolAmount, agentStake, totalEligibleStake *big.Int) *big.Int {
+func contributionRewardCap(poolAmount, agentStake, totalEligibleStake *big.Int, capBps int64) *big.Int {
 	if poolAmount == nil || agentStake == nil || totalEligibleStake == nil {
 		return new(big.Int)
 	}
 	if poolAmount.Sign() <= 0 || agentStake.Sign() <= 0 || totalEligibleStake.Sign() <= 0 {
 		return new(big.Int)
 	}
+	if capBps <= 0 {
+		capBps = 200
+	}
 
-	capAmount := new(big.Int).Mul(poolAmount, big.NewInt(MaxSharePerAgentBPS))
+	capAmount := new(big.Int).Mul(poolAmount, big.NewInt(capBps))
 	capAmount.Mul(capAmount, agentStake)
 	capAmount.Div(capAmount, big.NewInt(10000))
 	capAmount.Div(capAmount, totalEligibleStake)

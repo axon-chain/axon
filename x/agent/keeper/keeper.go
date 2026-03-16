@@ -231,6 +231,7 @@ func (k Keeper) RegisterFromPrecompile(ctx sdk.Context, msg *types.MsgRegister, 
 	}
 
 	k.SetAgent(ctx, agent)
+	k.BootstrapLegacyReputation(ctx, agent.Address, agent.Reputation)
 	k.IncrementDailyRegisterCount(ctx, msg.Sender)
 
 	ctx.EventManager().EmitEvent(sdk.NewEvent(
@@ -279,6 +280,138 @@ func (k Keeper) AddStakeToAgent(ctx sdk.Context, sender string, stake sdk.Coin, 
 	))
 
 	return &types.MsgAddStakeResponse{TotalStake: agent.StakeAmount}, nil
+}
+
+// ReduceStakeFromAgent initiates a stake reduction with an unbonding period.
+// The reduced amount is locked until reduceUnlockHeight, then claimable.
+func (k Keeper) ReduceStakeFromAgent(ctx sdk.Context, sender string, amount sdk.Coin) error {
+	agent, found := k.GetAgent(ctx, sender)
+	if !found {
+		return types.ErrAgentNotFound
+	}
+	if agent.Status == types.AgentStatus_AGENT_STATUS_SUSPENDED {
+		return types.ErrAgentSuspended
+	}
+	if k.HasDeregisterRequest(ctx, sender) {
+		return types.ErrDeregisterCooldown
+	}
+	if amount.Denom != "aaxon" {
+		return types.ErrInvalidStakeDenom
+	}
+	if !amount.IsPositive() {
+		return types.ErrStakeAmountMustBePositive
+	}
+
+	params := k.GetParams(ctx)
+	minStakeInt := sdkmath.NewIntFromBigInt(new(big.Int).Mul(big.NewInt(int64(params.MinRegisterStake)), oneAxon))
+	minStake := sdk.NewCoin("aaxon", minStakeInt)
+	remaining := agent.StakeAmount.Sub(amount)
+	if remaining.IsLT(minStake) {
+		return types.ErrBelowMinimumStake
+	}
+
+	if k.hasPendingReduce(ctx, sender) {
+		return types.ErrPendingReduceExists
+	}
+
+	unlockHeight := ctx.BlockHeight() + types.DeregisterCooldownBlocks
+
+	agent.StakeAmount = remaining
+	k.SetAgent(ctx, agent)
+
+	k.setPendingReduce(ctx, sender, amount.Amount, unlockHeight)
+
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		"agent_stake_reduce_initiated",
+		sdk.NewAttribute("address", sender),
+		sdk.NewAttribute("amount", amount.String()),
+		sdk.NewAttribute("unlock_height", fmt.Sprintf("%d", unlockHeight)),
+		sdk.NewAttribute("remaining_stake", remaining.String()),
+	))
+
+	return nil
+}
+
+// ClaimReducedStake releases funds after the unbonding period.
+func (k Keeper) ClaimReducedStake(ctx sdk.Context, sender string) error {
+	amount, unlockHeight, found := k.getPendingReduce(ctx, sender)
+	if !found {
+		return types.ErrNoReducePending
+	}
+	if ctx.BlockHeight() < unlockHeight {
+		return types.ErrReduceNotUnlocked
+	}
+
+	recipientAddr, err := sdk.AccAddressFromBech32(sender)
+	if err != nil {
+		return err
+	}
+
+	coins := sdk.NewCoins(sdk.NewCoin("aaxon", amount))
+	if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, recipientAddr, coins); err != nil {
+		return err
+	}
+
+	k.deletePendingReduce(ctx, sender)
+
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		"agent_stake_reduce_claimed",
+		sdk.NewAttribute("address", sender),
+		sdk.NewAttribute("amount", amount.String()),
+	))
+
+	return nil
+}
+
+// GetStakeInfo returns stake details for an agent.
+func (k Keeper) GetStakeInfo(ctx sdk.Context, address string) (totalStake sdkmath.Int, pendingReduce sdkmath.Int, reduceUnlockHeight int64, found bool) {
+	agent, agentFound := k.GetAgent(ctx, address)
+	if !agentFound {
+		return sdkmath.ZeroInt(), sdkmath.ZeroInt(), 0, false
+	}
+	totalStake = agent.StakeAmount.Amount
+	pendingReduce = sdkmath.ZeroInt()
+	reduceUnlockHeight = 0
+	amt, uh, hasPending := k.getPendingReduce(ctx, address)
+	if hasPending {
+		pendingReduce = amt
+		reduceUnlockHeight = uh
+	}
+	return totalStake, pendingReduce, reduceUnlockHeight, true
+}
+
+func (k Keeper) hasPendingReduce(ctx sdk.Context, address string) bool {
+	store := ctx.KVStore(k.storeKey)
+	return store.Has(types.KeyPendingReduceStake(address))
+}
+
+func (k Keeper) setPendingReduce(ctx sdk.Context, address string, amount sdkmath.Int, unlockHeight int64) {
+	store := ctx.KVStore(k.storeKey)
+	amtBz, _ := amount.Marshal()
+	heightBz := types.Uint64ToBytes(uint64(unlockHeight))
+	value := append(amtBz, heightBz...)
+	store.Set(types.KeyPendingReduceStake(address), value)
+}
+
+func (k Keeper) getPendingReduce(ctx sdk.Context, address string) (sdkmath.Int, int64, bool) {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.KeyPendingReduceStake(address))
+	if bz == nil || len(bz) < 9 {
+		return sdkmath.ZeroInt(), 0, false
+	}
+	amtBz := bz[:len(bz)-8]
+	heightBz := bz[len(bz)-8:]
+	var amount sdkmath.Int
+	if err := amount.Unmarshal(amtBz); err != nil {
+		return sdkmath.ZeroInt(), 0, false
+	}
+	unlockHeight := int64(types.BytesToUint64(heightBz))
+	return amount, unlockHeight, true
+}
+
+func (k Keeper) deletePendingReduce(ctx sdk.Context, address string) {
+	store := ctx.KVStore(k.storeKey)
+	store.Delete(types.KeyPendingReduceStake(address))
 }
 
 func (k Keeper) GetReputation(ctx sdk.Context, address string) uint64 {

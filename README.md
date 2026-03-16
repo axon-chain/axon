@@ -6,6 +6,8 @@
 
 Axon is a general-purpose blockchain for AI Agents, combining an independent L1 network, full EVM compatibility, and agent-native on-chain capabilities.
 
+Axon v2 introduces **Reputation Mining**, **Anti-Sybil Economic Loop**, and **Privacy Transaction Framework** — upgrading the consensus model from "PoS + reputation correction" to "PoS x reputation multiplier", and enabling on-chain anonymous identity proofs for Agents.
+
 The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosmos/evm` module.
 
 ## Mainnet
@@ -13,10 +15,10 @@ The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosm
 | Item | Value |
 |------|-------|
 | Cosmos Chain ID | `axon_8210-1` |
-| Chain ID (EVM) | `8210` |
+| EVM Chain ID | `8210` |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656` |
-| Bootstrap Peer | `65c18fb46f34cb0bd8430423491e5a36dea15aa2@mainnet-node.axonchain.ai:26656` |
+| Bootstrap Peer | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656` |
 | Genesis File | `docs/mainnet/genesis.json` |
 | Bootstrap Peers File | `docs/mainnet/bootstrap_peers.txt` |
 | Native Token | `AXON` |
@@ -31,7 +33,7 @@ Use the following values when adding Axon to MetaMask:
 |------|-------|
 | Network Name | `Axon` |
 | RPC URL | `https://mainnet-rpc.axonchain.ai/` |
-| Chain ID | `8210` |
+| EVM Chain ID | `8210` |
 | Currency Symbol | `AXON` |
 
 MetaMask uses the EVM network identity, so the correct wallet-facing chain ID is `8210`.
@@ -121,14 +123,105 @@ The standard mint module is disabled. Token issuance is handled by the Agent mod
 | AI Challenge Window | `50 blocks` |
 | Deregistration Cooldown | `120,960 blocks (~7 days)` |
 
+### Reputation Mining Parameters (v2)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| Alpha | `0.5` | Stake exponent (StakeScore = Stake^alpha) |
+| Beta | `1.5` | Reputation multiplier coefficient |
+| RMax | `100` | Max reputation score |
+| L1Cap | `40` | L1 reputation cap |
+| L2Cap | `30` | L2 reputation cap |
+| L1DecayRate | `0.1` | L1 decay per epoch |
+| L2DecayRate | `0.05` | L2 decay per epoch |
+| L2BudgetPerAgent | `0.1` | Per-agent per-epoch L2 budget |
+| L2BudgetCap | `100` | Total L2 budget cap per epoch |
+| ProposerSharePercent | `20` | Proposer reward share |
+| ValidatorPoolSharePercent | `55` | Validator pool share |
+| ReputationPoolSharePercent | `25` | Reputation pool share |
+| ContributionCapBps | `200` | Contribution reward cap (basis points, 200 = 2%) |
+
+### Privacy Module Parameters (v2)
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| MaxShieldAmount | `1,000,000 AXON` | Max single shield deposit |
+| PoolCapRatio | `0.1` | Shielded pool cap (% of total supply) |
+| VKRegistrationFee | `10 AXON` | Fee to register custom ZK verifying keys |
+
+## Core Features (v2)
+
+### Reputation Mining
+
+Validator mining power is determined by the **PoS x Reputation Multiplier** formula:
+
+```
+MiningPower = sqrt(Stake) × (1 + 1.5 × ln(1 + Reputation) / ln(101))
+```
+
+- **StakeScore**: Square root of stake — diminishing marginal returns for whales
+- **ReputationScore**: Ranges from 1.0 (zero reputation) to 2.0 (max reputation), up to 2x mining power
+- All math uses `LegacyDec` fixed-point arithmetic for cross-platform consensus determinism
+
+### Dual-Layer Reputation
+
+| Layer | Source | Cap | Decay |
+|-------|--------|-----|-------|
+| L1 (On-chain behavior) | Block signing, heartbeats, on-chain activity, contract usage, AI challenges | 40 | -0.1/Epoch |
+| L2 (Agent peer-review) | Agent-to-agent evaluation reports, anti-cheat filtered | 30 | -0.05/Epoch |
+
+Total cap 100. L2 anti-cheat includes mutual rating detection (weight x0.1), spam detection (>50 positive reviews zeroed), and epoch budget normalization.
+
+### Block Reward Distribution
+
+| Pool | Share | Distribution Rule |
+|------|-------|-------------------|
+| Proposer | 20% | Immediate to current block proposer |
+| Validator | 55% | End-of-epoch by MiningPower weight |
+| Reputation | 25% | End-of-epoch by ReputationScore to all registered Agents |
+
+### Privacy Transaction Framework
+
+zk-SNARK (Groth16) + Poseidon hash powered privacy capabilities:
+
+| Capability | Description |
+|------------|-------------|
+| Shielded Pool | Private transfers (transparent-to-private, private-to-transparent, in-pool) |
+| Private Identity | Zero-knowledge proofs — Agents prove reputation >= N or stake >= M without revealing address |
+| ZK Verifier | General Groth16 verifier with custom circuit registration |
+| Viewing Key | Selective disclosure — viewing key holders can decrypt transaction details but cannot spend |
+
+## Precompiled Contracts
+
+| Address | Interface | Description |
+|---------|-----------|-------------|
+| `0x0...0801` | IAgentRegistry | Agent registration, heartbeat, stake management (`addStake`/`reduceStake`/`claimReducedStake`/`getStakeInfo`) |
+| `0x0...0802` | IAgentReputation | Reputation query (returns combined L1+L2 score) |
+| `0x0...0803` | IAgentWallet | Agent on-chain wallet (trusted channels, limits, freeze/recover) |
+| `0x0...0807` | IReputationReport | L2 Agent peer-review system |
+| `0x0...0810` | IPoseidonHasher | Poseidon hash (BN254 curve) |
+| `0x0...0811` | IPrivateTransfer | Private transfers (shield/unshield/privateTransfer) |
+| `0x0...0812` | IPrivateIdentity | Private identity proofs (ZK reputation/stake/capability proofs) |
+| `0x0...0813` | IZKVerifier | General Groth16 ZK verifier |
+
+Solidity interfaces are in `contracts/interfaces/`.
+
 ## Code Layout
 
 | Path | Description |
 |------|-------------|
 | `app/` | Chain application wiring for Cosmos SDK, EVM, and Axon modules |
 | `cmd/axond/` | `axond` binary entry point |
-| `x/agent/` | Agent module for registration, heartbeat, reputation, and rewards |
-| `precompiles/` | EVM precompile implementations |
+| `x/agent/` | Agent module — registration, heartbeat, reputation mining, dual-layer reputation, reward distribution, AI challenges |
+| `x/privacy/` | Privacy module — commitment tree, nullifier set, shielded pool, identity commitments, viewing key |
+| `precompiles/registry/` | 0x0801 Agent registry precompile |
+| `precompiles/reputation/` | 0x0802 Reputation query precompile |
+| `precompiles/wallet/` | 0x0803 Wallet precompile |
+| `precompiles/report/` | 0x0807 L2 peer-review precompile |
+| `precompiles/poseidon/` | 0x0810 Poseidon hash precompile |
+| `precompiles/private_transfer/` | 0x0811 Private transfer precompile |
+| `precompiles/private_identity/` | 0x0812 Private identity proof precompile |
+| `precompiles/zk_verifier/` | 0x0813 ZK verifier precompile |
 | `contracts/` | Solidity interfaces and sample contracts |
 | `sdk/python/` | Python SDK |
 | `sdk/typescript/` | TypeScript SDK |
@@ -301,8 +394,10 @@ Runtime behavior:
 
 - each script resolves `axond`, `genesis.json`, `bootstrap_peers.txt`, and `data/` relative to its own directory
 - if `./axond` is missing, the script downloads the latest binary from the built-in release URL constant and verifies its SHA-256 sidecar file before use
-- for the published mainnet files, leave `CHAIN_ID` at the default `axon_8210-1`
+- the published Axon mainnet parameters are `CHAIN_ID=axon_8210-1` and `EVM_CHAIN_ID=8210`
+- for the published mainnet files, leave `CHAIN_ID` at the default `axon_8210-1` and `EVM_CHAIN_ID` at the default `8210`
 - if you generate a brand-new network genesis, set `CHAIN_ID` to the same Cosmos chain ID used when running `axond init --chain-id ...`
+- if you generate a brand-new public network, choose a new unused `EVM_CHAIN_ID` and configure the same value on every node
 - leave `P2P_EXTERNAL_ADDRESS` unset on ordinary outbound-only nodes so they do not advertise an unresolvable local hostname
 - set `P2P_EXTERNAL_ADDRESS=host:26656` only on publicly reachable nodes that should accept inbound P2P connections
 - `./start_validator_node.sh init` creates or imports the validator account, prints a newly generated mnemonic once to stdout, and writes `data/validator.address`, `data/validator.valoper`, `data/validator.consensus_pubkey.json`, and `data/peer_info.txt`
@@ -365,9 +460,39 @@ Related implementations:
 - TypeScript client: `sdk/typescript/src/client.ts`
 - Agent daemon: `tools/agent-daemon/`
 
+## Architecture Overview
+
+```
+┌──────────────────────────────────────────────────────┐
+│                     EVM Layer                        │
+│  ┌────────────────────────────────────────────────┐  │
+│  │  Solidity Contracts / Agent DApps              │  │
+│  │  ↕  ↕  ↕  ↕  ↕  ↕  ↕  ↕                      │  │
+│  │  Precompiles (0x0801 ~ 0x0813)                 │  │
+│  └────────────────────────────────────────────────┘  │
+├──────────────────────────────────────────────────────┤
+│                  Application Layer                   │
+│  ┌──────────────────┐  ┌──────────────────────────┐  │
+│  │    x/agent        │  │      x/privacy           │  │
+│  │  ├ registration   │  │  ├ commitment tree       │  │
+│  │  ├ heartbeat      │  │  ├ nullifier set         │  │
+│  │  ├ l1_reputation  │  │  ├ shielded pool         │  │
+│  │  ├ l2_reputation  │  │  ├ identity commitments  │  │
+│  │  ├ mining_power   │  │  ├ viewing key           │  │
+│  │  ├ block_rewards  │  │  └ zk verifying keys     │  │
+│  │  └ ai_challenge   │  └──────────────────────────┘  │
+│  └──────────────────┘                                │
+├──────────────────────────────────────────────────────┤
+│              Cosmos SDK + CometBFT                   │
+│  bank · staking · gov · slashing · distribution      │
+│  consensus · evidence · fee-market · cosmos/evm      │
+└──────────────────────────────────────────────────────┘
+```
+
 ## Supporting References
 
 - [Whitepaper](docs/whitepaper_en.md)
+- [v2 Upgrade Proposal](Axon_v2_升级产品方案.md)
 - [Security Audit](docs/SECURITY_AUDIT_EN.md)
 
 ## License

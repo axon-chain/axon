@@ -23,6 +23,8 @@ import {
   trustLevelName,
 } from "./precompiles";
 
+const PRECOMPILE_TX_GAS_LIMIT = 2_000_000n;
+
 // ─── Types ──────────────────────────────────────────────────────────
 
 export interface AgentInfo {
@@ -137,12 +139,18 @@ export class AgentClient {
   ): Promise<TransactionResponse> {
     this._requireSigner();
     const stakeWei = parseEther(stakeAxon);
-    return this._registry.register(capabilities, model, { value: stakeWei });
+    return this._registry.register(
+      capabilities,
+      model,
+      this._precompileTxOverrides(stakeWei)
+    );
   }
 
   async addStake(stakeAxon: string): Promise<TransactionResponse> {
     this._requireSigner();
-    return this._registry.addStake({ value: parseEther(stakeAxon) });
+    return this._registry.addStake(
+      this._precompileTxOverrides(parseEther(stakeAxon))
+    );
   }
 
   async updateAgent(
@@ -150,17 +158,21 @@ export class AgentClient {
     model: string
   ): Promise<TransactionResponse> {
     this._requireSigner();
-    return this._registry.updateAgent(capabilities, model);
+    return this._registry.updateAgent(
+      capabilities,
+      model,
+      this._precompileTxOverrides()
+    );
   }
 
   async heartbeat(): Promise<TransactionResponse> {
     this._requireSigner();
-    return this._registry.heartbeat();
+    return this._registry.heartbeat(this._precompileTxOverrides());
   }
 
   async deregister(): Promise<TransactionResponse> {
     this._requireSigner();
-    return this._registry.deregister();
+    return this._registry.deregister(this._precompileTxOverrides());
   }
 
   // ─── Reputation (0x...0802) ─────────────────────────────────────
@@ -193,7 +205,8 @@ export class AgentClient {
       getAddress(guardian),
       parseEther(txLimitAxon),
       parseEther(dailyLimitAxon),
-      cooldownBlocks
+      cooldownBlocks,
+      this._precompileTxOverrides()
     );
   }
 
@@ -208,13 +221,14 @@ export class AgentClient {
       getAddress(wallet),
       getAddress(target),
       parseEther(valueAxon),
-      data
+      data,
+      this._precompileTxOverrides()
     );
   }
 
   async freezeWallet(wallet: string): Promise<TransactionResponse> {
     this._requireSigner();
-    return this._wallet.freeze(getAddress(wallet));
+    return this._wallet.freeze(getAddress(wallet), this._precompileTxOverrides());
   }
 
   async recoverWallet(
@@ -224,7 +238,8 @@ export class AgentClient {
     this._requireSigner();
     return this._wallet.recover(
       getAddress(wallet),
-      getAddress(newOperator)
+      getAddress(newOperator),
+      this._precompileTxOverrides()
     );
   }
 
@@ -243,7 +258,8 @@ export class AgentClient {
       level,
       parseEther(txLimitAxon),
       parseEther(dailyLimitAxon),
-      expiresAt
+      expiresAt,
+      this._precompileTxOverrides()
     );
   }
 
@@ -254,7 +270,8 @@ export class AgentClient {
     this._requireSigner();
     return this._wallet.removeTrust(
       getAddress(wallet),
-      getAddress(target)
+      getAddress(target),
+      this._precompileTxOverrides()
     );
   }
 
@@ -354,5 +371,17 @@ export class AgentClient {
         "No signer set. Pass a privateKey to the constructor or call connect()."
       );
     }
+  }
+
+  private _precompileTxOverrides(
+    value?: bigint
+  ): { gasLimit: bigint; value?: bigint } {
+    const overrides: { gasLimit: bigint; value?: bigint } = {
+      gasLimit: PRECOMPILE_TX_GAS_LIMIT,
+    };
+    if (value !== undefined) {
+      overrides.value = value;
+    }
+    return overrides;
   }
 }

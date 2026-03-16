@@ -119,11 +119,6 @@ package-agent:
 	@bash packaging/package_agent.sh
 
 package-all:
-	@echo "Packaging Axon release bundle with Dockerized Go toolchain..."
-	@echo "  Builder Image: $${PACKAGING_DOCKER_IMAGE:-golang:1.25.7-trixie}"
-	@bash packaging/package_all.sh
-
-release-matrix:
 	@echo "Building release matrix with Dockerized Go toolchain..."
 	@echo "  Builder Image: $${PACKAGING_DOCKER_IMAGE:-golang:1.25.7-trixie}"
 	@bash packaging/build_release_matrix.sh

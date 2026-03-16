@@ -117,7 +117,7 @@ elif [[ "$SKIP_BUILD" != true ]]; then
       "AXON_BUILD_OUTPUT=${PACKAGING_WORKSPACE}/$(packaging_relpath "$CACHE_BIN_PATH")" \
       "CGO_ENABLED=$AXOND_CGO_ENABLED" \
       -- \
-      'go build -mod=readonly -ldflags "$AXON_BUILD_LDFLAGS" -o "$AXON_BUILD_OUTPUT" ./cmd/axond'
+      'go build -trimpath -mod=readonly -ldflags "-s -w $AXON_BUILD_LDFLAGS" -o "$AXON_BUILD_OUTPUT" ./cmd/axond'
   else
     packaging_run_go_container \
       "$GOOS_TARGET" \
@@ -126,7 +126,7 @@ elif [[ "$SKIP_BUILD" != true ]]; then
       "AXON_BUILD_LDFLAGS=$LDFLAGS" \
       "AXON_BUILD_OUTPUT=${PACKAGING_WORKSPACE}/$(packaging_relpath "$CACHE_BIN_PATH")" \
       -- \
-      'go build -mod=readonly -ldflags "$AXON_BUILD_LDFLAGS" -o "$AXON_BUILD_OUTPUT" ./cmd/axond'
+      'go build -trimpath -mod=readonly -ldflags "-s -w $AXON_BUILD_LDFLAGS" -o "$AXON_BUILD_OUTPUT" ./cmd/axond'
   fi
   cp "$CACHE_BIN_PATH" "$PACKAGED_BINARY_PATH"
 fi

@@ -221,10 +221,10 @@ func TestDetectCheaters3PlusDuplicates(t *testing.T) {
 	k, _, _ := setupTestKeeper(t)
 
 	responses := []types.AIResponse{
-		{ValidatorAddress: "axon1aaa", CommitHash: "same_hash", RevealData: "a"},
-		{ValidatorAddress: "axon1bbb", CommitHash: "same_hash", RevealData: "b"},
-		{ValidatorAddress: "axon1ccc", CommitHash: "same_hash", RevealData: "c"},
-		{ValidatorAddress: "axon1ddd", CommitHash: "unique_hash", RevealData: "d"},
+		{ValidatorAddress: "axon1aaa", CommitHash: "hash1", RevealData: "PBFT"},
+		{ValidatorAddress: "axon1bbb", CommitHash: "hash2", RevealData: "pbft"},
+		{ValidatorAddress: "axon1ccc", CommitHash: "hash3", RevealData: " PBFT "},
+		{ValidatorAddress: "axon1ddd", CommitHash: "hash4", RevealData: "RAFT"},
 	}
 
 	cheaters := keeper.DetectCheatersForTest(k, responses)
@@ -238,18 +238,18 @@ func TestDetectCheaters3PlusDuplicates(t *testing.T) {
 		}
 	}
 	if cheaters["axon1ddd"] {
-		t.Error("axon1ddd should NOT be flagged (unique hash)")
+		t.Error("axon1ddd should NOT be flagged (unique answer)")
 	}
 }
 
-func TestDetectCheatersAllSameHash(t *testing.T) {
+func TestDetectCheatersAllSameAnswer(t *testing.T) {
 	k, _, _ := setupTestKeeper(t)
 
 	responses := []types.AIResponse{
-		{ValidatorAddress: "axon1aaa", CommitHash: "identical", RevealData: "a"},
-		{ValidatorAddress: "axon1bbb", CommitHash: "identical", RevealData: "b"},
-		{ValidatorAddress: "axon1ccc", CommitHash: "identical", RevealData: "c"},
-		{ValidatorAddress: "axon1ddd", CommitHash: "identical", RevealData: "d"},
+		{ValidatorAddress: "axon1aaa", CommitHash: "hash1", RevealData: "Dijkstra"},
+		{ValidatorAddress: "axon1bbb", CommitHash: "hash2", RevealData: "dijkstra"},
+		{ValidatorAddress: "axon1ccc", CommitHash: "hash3", RevealData: "  DIJKSTRA"},
+		{ValidatorAddress: "axon1ddd", CommitHash: "hash4", RevealData: "Dijkstra  "},
 	}
 
 	cheaters := keeper.DetectCheatersForTest(k, responses)
@@ -284,19 +284,21 @@ func TestDetectCheatersMultipleGroups(t *testing.T) {
 	k, _, _ := setupTestKeeper(t)
 
 	responses := []types.AIResponse{
-		{ValidatorAddress: "axon1aaa", CommitHash: "group1", RevealData: "a"},
-		{ValidatorAddress: "axon1bbb", CommitHash: "group1", RevealData: "b"},
-		{ValidatorAddress: "axon1ccc", CommitHash: "group2", RevealData: "c"},
-		{ValidatorAddress: "axon1ddd", CommitHash: "group2", RevealData: "d"},
-		{ValidatorAddress: "axon1eee", CommitHash: "unique", RevealData: "e"},
+		{ValidatorAddress: "axon1aaa", CommitHash: "hash1", RevealData: "alpha"},
+		{ValidatorAddress: "axon1bbb", CommitHash: "hash2", RevealData: "ALPHA"},
+		{ValidatorAddress: "axon1ccc", CommitHash: "hash3", RevealData: " alpha "},
+		{ValidatorAddress: "axon1ddd", CommitHash: "hash4", RevealData: "beta"},
+		{ValidatorAddress: "axon1eee", CommitHash: "hash5", RevealData: "BETA"},
+		{ValidatorAddress: "axon1fff", CommitHash: "hash6", RevealData: " beta "},
+		{ValidatorAddress: "axon1ggg", CommitHash: "hash7", RevealData: "gamma"},
 	}
 
 	cheaters := keeper.DetectCheatersForTest(k, responses)
-	if len(cheaters) != 4 {
-		t.Errorf("expected 4 cheaters (2 groups of 2), got %d", len(cheaters))
+	if len(cheaters) != 6 {
+		t.Errorf("expected 6 cheaters (2 groups of 3), got %d", len(cheaters))
 	}
-	if cheaters["axon1eee"] {
-		t.Error("axon1eee should NOT be flagged (unique hash)")
+	if cheaters["axon1ggg"] {
+		t.Error("axon1ggg should NOT be flagged (unique answer)")
 	}
 }
 
@@ -304,21 +306,22 @@ func TestDetectCheatersMixedEmptyAndDuplicate(t *testing.T) {
 	k, _, _ := setupTestKeeper(t)
 
 	responses := []types.AIResponse{
-		{ValidatorAddress: "axon1aaa", CommitHash: "", RevealData: "a"},
-		{ValidatorAddress: "axon1bbb", CommitHash: "dup", RevealData: "b"},
-		{ValidatorAddress: "axon1ccc", CommitHash: "dup", RevealData: "c"},
-		{ValidatorAddress: "axon1ddd", CommitHash: "", RevealData: "d"},
+		{ValidatorAddress: "axon1aaa", CommitHash: "hash1", RevealData: ""},
+		{ValidatorAddress: "axon1bbb", CommitHash: "hash2", RevealData: "merkle"},
+		{ValidatorAddress: "axon1ccc", CommitHash: "hash3", RevealData: "MERKLE"},
+		{ValidatorAddress: "axon1ddd", CommitHash: "hash4", RevealData: " merkle "},
+		{ValidatorAddress: "axon1eee", CommitHash: "hash5", RevealData: ""},
 	}
 
 	cheaters := keeper.DetectCheatersForTest(k, responses)
-	if len(cheaters) != 2 {
-		t.Errorf("expected 2 cheaters (dup pair, empty ignored), got %d", len(cheaters))
+	if len(cheaters) != 3 {
+		t.Errorf("expected 3 cheaters (dup triplet, empty ignored), got %d", len(cheaters))
 	}
-	if !cheaters["axon1bbb"] || !cheaters["axon1ccc"] {
-		t.Error("axon1bbb and axon1ccc should be flagged")
+	if !cheaters["axon1bbb"] || !cheaters["axon1ccc"] || !cheaters["axon1ddd"] {
+		t.Error("the duplicate-answer triplet should be flagged")
 	}
-	if cheaters["axon1aaa"] || cheaters["axon1ddd"] {
-		t.Error("empty hash addresses should not be flagged")
+	if cheaters["axon1aaa"] || cheaters["axon1eee"] {
+		t.Error("empty-reveal addresses should not be flagged")
 	}
 }
 

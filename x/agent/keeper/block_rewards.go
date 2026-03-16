@@ -25,63 +25,19 @@ const (
 	// Whitepaper §8.2: 区块奖励（验证者挖矿）65% = 650,000,000 AXON
 	MaxBlockRewardSupplyStr = "650000000000000000000000000"
 
-	// ProposerShare = 25%
-	ProposerSharePercent = 25
-	// ValidatorPoolShare = 50%
-	ValidatorPoolSharePercent = 50
-	// AIPerformanceShare = 25%
-	AIPerformanceSharePercent = 25
+	// M4: pool ratios — Proposer 20%, Validator 55%, Reputation 25%
+	ProposerSharePercent       = 20
+	ValidatorPoolSharePercent  = 55
+	ReputationPoolSharePercent = 25
 )
 
-// DistributeBlockRewards mints and distributes block rewards.
-// Hard-capped at 650M AXON total (whitepaper §8.2).
+// DistributeBlockRewards is kept for backward compatibility but is now a no-op.
+// Block reward minting and proposer distribution is handled by AccumulateBlockReward
+// in abci.go. Validator and AI pool distribution happens at epoch boundaries via
+// DistributeAccumulatedBlockRewards.
 func (k Keeper) DistributeBlockRewards(ctx sdk.Context) {
-	blockHeight := ctx.BlockHeight()
-	if blockHeight <= 1 {
-		return
-	}
-
-	reward := calculateBlockReward(blockHeight)
-	if reward.IsZero() {
-		return
-	}
-
-	// Enforce 650M hard cap
-	maxSupply, _ := new(big.Int).SetString(MaxBlockRewardSupplyStr, 10)
-	totalMinted := k.GetTotalBlockRewardsMinted(ctx)
-	remaining := sdkmath.NewIntFromBigInt(new(big.Int).Sub(maxSupply, totalMinted.BigInt()))
-	if !remaining.IsPositive() {
-		return
-	}
-	if reward.GT(remaining) {
-		reward = remaining
-	}
-
-	rewardCoin := sdk.NewCoin("aaxon", reward)
-
-	if err := k.bankKeeper.MintCoins(ctx, types.ModuleName, sdk.NewCoins(rewardCoin)); err != nil {
-		k.Logger(ctx).Error("failed to mint block rewards", "error", err)
-		return
-	}
-
-	k.addTotalBlockRewardsMinted(ctx, reward)
-
-	proposerReward := reward.Mul(sdkmath.NewInt(ProposerSharePercent)).Quo(sdkmath.NewInt(100))
-	validatorReward := reward.Mul(sdkmath.NewInt(ValidatorPoolSharePercent)).Quo(sdkmath.NewInt(100))
-	aiReward := reward.Sub(proposerReward).Sub(validatorReward)
-
-	k.distributeProposerReward(ctx, proposerReward)
-	k.distributeValidatorRewards(ctx, validatorReward)
-	k.distributeAIPerformanceRewards(ctx, aiReward)
-
-	ctx.EventManager().EmitEvent(sdk.NewEvent(
-		"block_rewards",
-		sdk.NewAttribute("height", fmt.Sprintf("%d", blockHeight)),
-		sdk.NewAttribute("total", rewardCoin.String()),
-		sdk.NewAttribute("proposer", proposerReward.String()),
-		sdk.NewAttribute("validators", validatorReward.String()),
-		sdk.NewAttribute("ai_performance", aiReward.String()),
-	))
+	// Intentionally empty — replaced by AccumulateBlockReward (F5 fix).
+	// This stub prevents compile errors if any external code still calls it.
 }
 
 // --- Supply cap tracking ---
@@ -134,65 +90,46 @@ func calculateBlockReward(blockHeight int64) sdkmath.Int {
 	return sdkmath.NewIntFromBigInt(reward)
 }
 
-// distributeProposerReward sends 25% to the block proposer.
-func (k Keeper) distributeProposerReward(ctx sdk.Context, amount sdkmath.Int) {
+// distributeProposerReward sends 20% to the block proposer and returns any
+// amount that could not be delivered so it can stay in the v2 validator pool.
+func (k Keeper) distributeProposerReward(ctx sdk.Context, amount sdkmath.Int) sdkmath.Int {
 	if amount.IsZero() {
-		return
+		return sdkmath.ZeroInt()
 	}
 
 	proposerConsAddr := ctx.BlockHeader().ProposerAddress
 	if len(proposerConsAddr) == 0 {
-		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", amount))
-		return
+		return amount
 	}
 
 	// Look up the validator by consensus address to get the operator address
 	validator, err := k.stakingKeeper.GetValidatorByConsAddr(ctx, sdk.ConsAddress(proposerConsAddr))
 	if err != nil {
 		k.Logger(ctx).Error("failed to find proposer validator", "error", err)
-		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", amount))
-		return
+		return amount
 	}
 
 	// Convert validator operator address to account address for reward
 	valAddr, err := sdk.ValAddressFromBech32(validator.OperatorAddress)
 	if err != nil {
 		k.Logger(ctx).Error("failed to parse validator operator address", "error", err)
-		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", amount))
-		return
+		return amount
 	}
 	accAddr := sdk.AccAddress(valAddr)
 
 	coins := sdk.NewCoins(sdk.NewCoin("aaxon", amount))
 	if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, accAddr, coins); err != nil {
 		k.Logger(ctx).Error("failed to send proposer reward", "error", err)
-		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", amount))
+		return amount
 	}
+	return sdkmath.ZeroInt()
 }
 
-// reputationBonusPercent returns the tiered reputation bonus per whitepaper §7.3.
-func reputationBonusPercent(reputation uint64) int64 {
-	switch {
-	case reputation >= 90:
-		return 20
-	case reputation >= 70:
-		return 15
-	case reputation >= 50:
-		return 10
-	case reputation >= 30:
-		return 5
-	default:
-		return 0
-	}
-}
-
-// distributeValidatorRewards distributes 50% to active bonded validators by weight.
-// Weight = Stake × (100 + ReputationBonus + AIBonus) per whitepaper §7.3.
-// Falls back to bonded staking validators weighted by bonded tokens when no
-// eligible validator Agents are online.
-func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.Int) {
+// distributeValidatorRewards distributes 55% to active bonded validators weighted
+// by v2 MiningPower. Falls back to bonded staking tokens when no eligible agents.
+func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.Int) sdkmath.Int {
 	if totalAmount.IsZero() {
-		return
+		return sdkmath.ZeroInt()
 	}
 
 	type validatorWeight struct {
@@ -210,14 +147,12 @@ func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.
 		if !k.isActiveValidatorAddress(ctx, agent.Address) {
 			return false
 		}
-		stake := agent.StakeAmount.Amount.BigInt()
-		repBonus := reputationBonusPercent(agent.Reputation)
-		aiBonus := k.GetAIBonus(ctx, agent.Address)
-		multiplier := int64(100) + repBonus + aiBonus
-		if multiplier < 10 {
-			multiplier = 10
+
+		mp := k.GetMiningPower(ctx, agent.Address)
+		if mp <= 0 {
+			mp = 1
 		}
-		w := new(big.Int).Mul(stake, big.NewInt(multiplier))
+		w := big.NewInt(mp)
 		totalWeight.Add(totalWeight, w)
 
 		addr, err := sdk.AccAddressFromBech32(agent.Address)
@@ -228,7 +163,6 @@ func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.
 		return false
 	})
 
-	// Fallback: if no eligible validator Agents are online, distribute to bonded staking validators.
 	if len(validators) == 0 {
 		bondedVals, err := k.stakingKeeper.GetBondedValidatorsByPower(ctx)
 		if err == nil && len(bondedVals) > 0 {
@@ -252,8 +186,7 @@ func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.
 	}
 
 	if totalWeight.Sign() <= 0 || len(validators) == 0 {
-		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", totalAmount))
-		return
+		return totalAmount
 	}
 
 	totalBig := totalAmount.BigInt()
@@ -274,77 +207,115 @@ func (k Keeper) distributeValidatorRewards(ctx sdk.Context, totalAmount sdkmath.
 	}
 
 	remainder := totalAmount.Sub(distributed)
-	if remainder.IsPositive() {
-		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", remainder))
-	}
+	return remainder
 }
 
-// distributeAIPerformanceRewards distributes 25% to AI-qualified validator Agents
-// weighted by stake. AI bonus remains the eligibility signal; stake determines
-// the share so splitting stake across many validator Agents no longer improves payout.
-func (k Keeper) distributeAIPerformanceRewards(ctx sdk.Context, totalAmount sdkmath.Int) {
+// distributeReputationRewards distributes 25% (M4 Reputation Pool) to all registered
+// Agents proportional to their ReputationScore. Unlike the old AI Performance Pool,
+// this is open to ALL registered agents (not just validators) and weights by reputation
+// only (not stake), incentivizing reputation accumulation.
+func (k Keeper) distributeReputationRewards(ctx sdk.Context, totalAmount sdkmath.Int) sdkmath.Int {
 	if totalAmount.IsZero() {
-		return
+		return sdkmath.ZeroInt()
 	}
 
-	type aiWeight struct {
+	type repWeight struct {
 		address string
-		weight  *big.Int
+		weight  int64
 	}
 
-	var agents []aiWeight
-	totalWeight := new(big.Int)
+	var agents []repWeight
+	totalWeight := int64(0)
 
 	k.IterateAgents(ctx, func(agent types.Agent) bool {
-		if agent.Status != types.AgentStatus_AGENT_STATUS_ONLINE {
+		if agent.Status == types.AgentStatus_AGENT_STATUS_SUSPENDED {
 			return false
 		}
-		if !k.isActiveValidatorAddress(ctx, agent.Address) {
+		totalRep := k.GetTotalReputation(ctx, agent.Address)
+		if totalRep <= 0 {
 			return false
 		}
-		bonus := k.GetAIBonus(ctx, agent.Address)
-		if bonus <= 0 {
+		repScore := k.calcReputationScoreMillis(ctx, totalRep)
+		if repScore <= 0 {
 			return false
 		}
-		stake := agent.StakeAmount.Amount.BigInt()
-		if stake.Sign() <= 0 {
-			return false
-		}
-		weight := new(big.Int).Set(stake)
-		agents = append(agents, aiWeight{address: agent.Address, weight: weight})
-		totalWeight.Add(totalWeight, weight)
+		agents = append(agents, repWeight{address: agent.Address, weight: repScore})
+		totalWeight += repScore
 		return false
 	})
 
-	if totalWeight.Sign() <= 0 || len(agents) == 0 {
-		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", totalAmount))
-		return
+	if totalWeight <= 0 || len(agents) == 0 {
+		return totalAmount
 	}
 
 	totalBig := totalAmount.BigInt()
 	distributed := sdkmath.ZeroInt()
+	totalWeightBig := big.NewInt(totalWeight)
 
 	for _, a := range agents {
-		share := new(big.Int).Mul(totalBig, a.weight)
-		share.Div(share, totalWeight)
+		share := new(big.Int).Mul(totalBig, big.NewInt(a.weight))
+		share.Div(share, totalWeightBig)
 		reward := sdkmath.NewIntFromBigInt(share)
 		if reward.IsZero() {
 			continue
 		}
-
 		addr, err := sdk.AccAddressFromBech32(a.address)
 		if err != nil {
 			continue
 		}
 		if err := k.bankKeeper.SendCoinsFromModuleToAccount(ctx, types.ModuleName, addr, sdk.NewCoins(sdk.NewCoin("aaxon", reward))); err != nil {
-			k.Logger(ctx).Error("failed to send AI performance reward", "address", a.address, "error", err)
+			k.Logger(ctx).Error("failed to send reputation reward", "address", a.address, "error", err)
 			continue
 		}
 		distributed = distributed.Add(reward)
 	}
 
 	remainder := totalAmount.Sub(distributed)
-	if remainder.IsPositive() {
-		k.AddToRewardPool(ctx, sdk.NewCoin("aaxon", remainder))
+	return remainder
+}
+
+// calcReputationScoreMillis converts milliscored total reputation to the
+// ReputationScore multiplier (×1000) using the same log formula as mining power:
+//
+//	RepScore = 1 + beta * ln(1 + rep) / ln(rMax + 1)
+//
+// Reads beta and rMax from governance params. Returns value in range [1000, ~2500] (×1000).
+func (k Keeper) calcReputationScoreMillis(ctx sdk.Context, totalRepMillis int64) int64 {
+	if totalRepMillis <= 0 {
+		return 1000
 	}
+
+	params := k.GetParams(ctx)
+	beta := DefaultBeta
+	rMax := DefaultRMax
+	if params.Beta != "" {
+		if b, err := sdkmath.LegacyNewDecFromStr(params.Beta); err == nil {
+			beta = b
+		}
+	}
+	if params.RMax > 0 {
+		rMax = int64(params.RMax)
+	}
+
+	rep := totalRepMillis / 1000
+	if rep > rMax {
+		rep = rMax
+	}
+	if rep <= 0 {
+		return 1000
+	}
+
+	repDec := sdkmath.LegacyNewDec(1 + rep)
+	lnRep := ApproxLn(repDec)
+	logDen := ln101
+	if rMax != 100 {
+		logDen = ApproxLn(sdkmath.LegacyNewDec(rMax + 1))
+	}
+	score := decOne.Add(beta.Mul(lnRep).Quo(logDen))
+
+	result := score.MulInt64(1000).TruncateInt64()
+	if result < 1000 {
+		result = 1000
+	}
+	return result
 }

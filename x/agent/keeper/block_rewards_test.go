@@ -221,21 +221,21 @@ func TestReputationBonusTierTransitions(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBlockRewardSharesSumTo100(t *testing.T) {
-	total := keeper.ProposerSharePercent + keeper.ValidatorPoolSharePercent + keeper.AIPerformanceSharePercent
+	total := keeper.ProposerSharePercent + keeper.ValidatorPoolSharePercent + keeper.ReputationPoolSharePercent
 	if total != 100 {
 		t.Errorf("reward shares sum to %d%%, want 100%%", total)
 	}
 }
 
 func TestBlockRewardShareValues(t *testing.T) {
-	if keeper.ProposerSharePercent != 25 {
-		t.Errorf("ProposerSharePercent = %d, want 25", keeper.ProposerSharePercent)
+	if keeper.ProposerSharePercent != 20 {
+		t.Errorf("ProposerSharePercent = %d, want 20", keeper.ProposerSharePercent)
 	}
-	if keeper.ValidatorPoolSharePercent != 50 {
-		t.Errorf("ValidatorPoolSharePercent = %d, want 50", keeper.ValidatorPoolSharePercent)
+	if keeper.ValidatorPoolSharePercent != 55 {
+		t.Errorf("ValidatorPoolSharePercent = %d, want 55", keeper.ValidatorPoolSharePercent)
 	}
-	if keeper.AIPerformanceSharePercent != 25 {
-		t.Errorf("AIPerformanceSharePercent = %d, want 25", keeper.AIPerformanceSharePercent)
+	if keeper.ReputationPoolSharePercent != 25 {
+		t.Errorf("ReputationPoolSharePercent = %d, want 25", keeper.ReputationPoolSharePercent)
 	}
 }
 

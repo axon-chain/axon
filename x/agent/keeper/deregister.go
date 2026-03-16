@@ -120,6 +120,9 @@ func (k Keeper) executeDeregister(ctx sdk.Context, address string, params types.
 }
 
 // cleanupAgentEpochData removes epoch-scoped data for a deregistered agent.
+// Keys use the format "Prefix/<epoch_bytes>/<address>", so we match on the
+// "/" + address suffix to avoid accidentally deleting data for other agents
+// whose address might be a raw substring of the key.
 func (k Keeper) cleanupAgentEpochData(ctx sdk.Context, address string) {
 	store := ctx.KVStore(k.storeKey)
 
@@ -130,13 +133,15 @@ func (k Keeper) cleanupAgentEpochData(ctx sdk.Context, address string) {
 		types.AIResponseKeyPrefix,
 	}
 
+	suffix := "/" + address
+
 	for _, prefix := range prefixes {
 		iterator := storetypes.KVStorePrefixIterator(store, []byte(prefix))
 		var toDelete [][]byte
 		for ; iterator.Valid(); iterator.Next() {
 			key := iterator.Key()
 			keyStr := string(key)
-			if len(keyStr) > len(address) && keyStr[len(keyStr)-len(address):] == address {
+			if len(keyStr) >= len(suffix) && keyStr[len(keyStr)-len(suffix):] == suffix {
 				toDelete = append(toDelete, key)
 			}
 		}

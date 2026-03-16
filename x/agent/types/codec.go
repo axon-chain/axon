@@ -10,6 +10,8 @@ import (
 func RegisterCodec(cdc *codec.LegacyAmino) {
 	cdc.RegisterConcrete(&MsgRegister{}, "axon/agent/MsgRegister", nil)
 	cdc.RegisterConcrete(&MsgAddStake{}, "axon/agent/MsgAddStake", nil)
+	cdc.RegisterConcrete(&MsgReduceStake{}, "axon/agent/MsgReduceStake", nil)
+	cdc.RegisterConcrete(&MsgClaimReducedStake{}, "axon/agent/MsgClaimReducedStake", nil)
 	cdc.RegisterConcrete(&MsgUpdateAgent{}, "axon/agent/MsgUpdateAgent", nil)
 	cdc.RegisterConcrete(&MsgHeartbeat{}, "axon/agent/MsgHeartbeat", nil)
 	cdc.RegisterConcrete(&MsgDeregister{}, "axon/agent/MsgDeregister", nil)
@@ -21,6 +23,8 @@ func RegisterInterfaces(registry types.InterfaceRegistry) {
 	registry.RegisterImplementations((*sdk.Msg)(nil),
 		&MsgRegister{},
 		&MsgAddStake{},
+		&MsgReduceStake{},
+		&MsgClaimReducedStake{},
 		&MsgUpdateAgent{},
 		&MsgHeartbeat{},
 		&MsgDeregister{},

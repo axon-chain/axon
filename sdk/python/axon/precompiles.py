@@ -195,6 +195,245 @@ WALLET_ABI = [
     },
 ]
 
+# --- New precompiles (v2 upgrade) ---
+
+REPORT_ADDRESS = "0x0000000000000000000000000000000000000807"
+POSEIDON_ADDRESS = "0x0000000000000000000000000000000000000810"
+PRIVATE_TRANSFER_ADDRESS = "0x0000000000000000000000000000000000000811"
+PRIVATE_IDENTITY_ADDRESS = "0x0000000000000000000000000000000000000812"
+ZK_VERIFIER_ADDRESS = "0x0000000000000000000000000000000000000813"
+
+# Registry: new methods added in S1
+REGISTRY_ABI.extend([
+    {
+        "inputs": [{"name": "amount", "type": "uint256"}],
+        "name": "reduceStake",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [],
+        "name": "claimReducedStake",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "agent", "type": "address"}],
+        "name": "getStakeInfo",
+        "outputs": [
+            {"name": "totalStake", "type": "uint256"},
+            {"name": "pendingReduce", "type": "uint256"},
+            {"name": "reduceUnlockHeight", "type": "uint64"},
+        ],
+        "stateMutability": "view",
+        "type": "function",
+    },
+])
+
+REPORT_ABI = [
+    {
+        "inputs": [
+            {"name": "targetAgent", "type": "address"},
+            {"name": "score", "type": "int8"},
+            {"name": "evidence", "type": "bytes32"},
+            {"name": "reason", "type": "string"},
+        ],
+        "name": "submitReport",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "agent", "type": "address"}],
+        "name": "getContractReputation",
+        "outputs": [
+            {"name": "score", "type": "int64"},
+            {"name": "positiveCount", "type": "uint64"},
+            {"name": "negativeCount", "type": "uint64"},
+            {"name": "uniqueReporters", "type": "uint64"},
+        ],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "agent", "type": "address"}],
+        "name": "getEpochReportCount",
+        "outputs": [{"name": "", "type": "uint64"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "reporter", "type": "address"},
+            {"name": "target", "type": "address"},
+        ],
+        "name": "hasReported",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+]
+
+POSEIDON_ABI = [
+    {
+        "inputs": [
+            {"name": "left", "type": "bytes32"},
+            {"name": "right", "type": "bytes32"},
+        ],
+        "name": "hash2",
+        "outputs": [{"name": "", "type": "bytes32"}],
+        "stateMutability": "pure",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "a", "type": "bytes32"},
+            {"name": "b", "type": "bytes32"},
+            {"name": "c", "type": "bytes32"},
+        ],
+        "name": "hash3",
+        "outputs": [{"name": "", "type": "bytes32"}],
+        "stateMutability": "pure",
+        "type": "function",
+    },
+]
+
+PRIVATE_TRANSFER_ABI = [
+    {
+        "inputs": [{"name": "commitment", "type": "bytes32"}],
+        "name": "shield",
+        "outputs": [],
+        "stateMutability": "payable",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "proof", "type": "bytes"},
+            {"name": "merkleRoot", "type": "bytes32"},
+            {"name": "nullifier", "type": "bytes32"},
+            {"name": "recipient", "type": "address"},
+            {"name": "amount", "type": "uint256"},
+        ],
+        "name": "unshield",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "proof", "type": "bytes"},
+            {"name": "merkleRoot", "type": "bytes32"},
+            {"name": "inputNullifiers", "type": "bytes32[2]"},
+            {"name": "outputCommitments", "type": "bytes32[2]"},
+        ],
+        "name": "privateTransfer",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "root", "type": "bytes32"}],
+        "name": "isKnownRoot",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "nullifier", "type": "bytes32"}],
+        "name": "isSpent",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [],
+        "name": "getTreeSize",
+        "outputs": [{"name": "", "type": "uint256"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+]
+
+PRIVATE_IDENTITY_ABI = [
+    {
+        "inputs": [{"name": "identityCommitment", "type": "bytes32"}],
+        "name": "registerIdentityCommitment",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "proof", "type": "bytes"},
+            {"name": "minReputation", "type": "uint64"},
+            {"name": "identityCommitment", "type": "bytes32"},
+        ],
+        "name": "proveReputation",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "proof", "type": "bytes"},
+            {"name": "capabilityHash", "type": "bytes32"},
+            {"name": "identityCommitment", "type": "bytes32"},
+        ],
+        "name": "proveCapability",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [
+            {"name": "proof", "type": "bytes"},
+            {"name": "minStake", "type": "uint256"},
+            {"name": "identityCommitment", "type": "bytes32"},
+        ],
+        "name": "proveStake",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "commitment", "type": "bytes32"}],
+        "name": "isCommitmentRegistered",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+]
+
+ZK_VERIFIER_ABI = [
+    {
+        "inputs": [
+            {"name": "verifyingKeyId", "type": "bytes32"},
+            {"name": "proof", "type": "bytes"},
+            {"name": "publicInputs", "type": "uint256[]"},
+        ],
+        "name": "verifyGroth16",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "vk", "type": "bytes"}],
+        "name": "registerVerifyingKey",
+        "outputs": [{"name": "keyId", "type": "bytes32"}],
+        "stateMutability": "payable",
+        "type": "function",
+    },
+    {
+        "inputs": [{"name": "keyId", "type": "bytes32"}],
+        "name": "isKeyRegistered",
+        "outputs": [{"name": "", "type": "bool"}],
+        "stateMutability": "view",
+        "type": "function",
+    },
+]
+
 # Trust levels for Trusted Channel system
 TRUST_BLOCKED = 0
 TRUST_UNKNOWN = 1

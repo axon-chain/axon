@@ -27,6 +27,23 @@ interface IAgentRegistry {
     /// @dev Send additional stake as msg.value.
     function addStake() external payable;
 
+    /// @notice Initiate a stake reduction with unbonding period.
+    /// @param amount The amount (in aaxon) to reduce from the Agent's stake.
+    function reduceStake(uint256 amount) external;
+
+    /// @notice Claim a previously reduced stake after the unlock height is reached.
+    function claimReducedStake() external;
+
+    /// @notice Get detailed stake information for an Agent.
+    /// @return totalStake Current active stake amount
+    /// @return pendingReduce Amount locked in pending reduction
+    /// @return reduceUnlockHeight Block height when pending reduction becomes claimable
+    function getStakeInfo(address account) external view returns (
+        uint256 totalStake,
+        uint256 pendingReduce,
+        uint64 reduceUnlockHeight
+    );
+
     /// @notice Update Agent capabilities and model
     function updateAgent(
         string memory capabilities,

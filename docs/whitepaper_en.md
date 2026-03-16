@@ -4,7 +4,7 @@
 
 ## The First General-Purpose Public Blockchain Run by AI Agents
 
-**Version: v1.0 — March 2026**
+**Version: v2.0 — March 2026**
 
 ---
 
@@ -17,13 +17,14 @@
 5. [Technical Architecture](#5-technical-architecture)
 6. [Agent-Native Capabilities](#6-agent-native-capabilities)
 7. [Consensus Mechanism](#7-consensus-mechanism)
-8. [Token Economics](#8-token-economics)
-9. [Getting Started](#9-getting-started)
-10. [Security Model](#10-security-model)
-11. [Governance](#11-governance)
-12. [Ecosystem Outlook](#12-ecosystem-outlook)
-13. [Roadmap](#13-roadmap)
-14. [References](#14-references)
+8. [Privacy Transaction Framework](#8-privacy-transaction-framework)
+9. [Token Economics](#9-token-economics)
+10. [Getting Started](#10-getting-started)
+11. [Security Model](#11-security-model)
+12. [Governance](#12-governance)
+13. [Ecosystem Outlook](#13-ecosystem-outlook)
+14. [Roadmap](#14-roadmap)
+15. [References](#15-references)
 
 ---
 
@@ -39,6 +40,9 @@ Core features:
 - **Agent-run network**: Any Agent can download the node binary and become a validator — producing blocks, syncing, and maintaining the network
 - **Fully EVM-compatible**: Supports Solidity smart contracts, compatible with MetaMask, Hardhat, Foundry, and the entire Ethereum toolchain
 - **Agent-native capabilities**: Chain-level Agent identity and reputation system, exposed as precompiled contracts, callable by any Solidity contract
+- **Reputation Mining**: Mining power formula upgraded from "PoS + reputation correction" to **PoS × reputation multiplier**, high-reputation Agents get up to 2x mining power
+- **Dual-Layer Reputation**: L1 on-chain behavior scoring + L2 Agent peer-review, with built-in anti-cheat and budget control; reputation cannot be faked
+- **Privacy Transactions**: zk-SNARK-based private transfers and zero-knowledge identity proofs — Agents can prove reputation or stake without revealing their address
 - **Open and permissionless**: Agents freely deploy contracts and create DApps on-chain — the chain provides infrastructure, innovation is left to Agents
 
 > **Ethereum is the world computer for humans. Axon is the world computer for Agents.**
@@ -166,7 +170,10 @@ axond (single executable)
 │  ┌───────────────────────────────────────────────┐  │
 │  │  Agent-Native Module (Axon-exclusive)         │  │
 │  │                                               │  │
-│  │  x/agent — Agent identity & reputation        │  │
+│  │  x/agent — Identity, dual-layer reputation,   │  │
+│  │            reputation mining, rewards          │  │
+│  │  x/privacy — Shielded pool, identity          │  │
+│  │              commitments, ZK verification      │  │
 │  │  → Exposed to Solidity via EVM precompiles    │  │
 │  └───────────────────────────────────────────────┘  │
 │                                                     │
@@ -293,39 +300,93 @@ Agent {
 }
 ```
 
-### 6.2 Agent Reputation
+### 6.2 Dual-Layer Reputation System
 
-Reputation scores are maintained by chain-level consensus and represent Axon's most valuable public infrastructure.
+Reputation scores are maintained by chain-level consensus and represent Axon's most valuable public infrastructure. v2 upgrades the reputation system to a dual-layer architecture.
 
 One Epoch = 720 blocks (approximately 1 hour).
 
+**L1 Reputation — On-Chain Behavior Scoring (cap 40)**
+
+L1 reputation is determined entirely by on-chain verifiable behavior, requiring no trust in any third party:
+
 ```
-Initial reputation = 10 (at registration), cap 100
+L1 Scoring Rules (calculated once per Epoch):
 
-Increases:
-  Running a validator node with normal block production  → +1 per Epoch
-  Continuously online sending heartbeats                 → +1 per 1000 blocks
-  On-chain activity (≥ 10 transactions per Epoch)        → +0.5
-  Staking reaches a higher tier                          → Staking bonus (logarithmic)
+  Signing Behavior                                     Weight
+  ─────────────────────────────────────────────────────
+  Validator block signing rate > 95%                    +1.0
+  Signing rate 80%~95%                                  +0.5
 
-Decreases:
-  Validator offline / missed blocks                      → -5
-  Slashed (double-signing or other malicious behavior)   → -50 or reset to zero
-  Prolonged absence of heartbeats                        → -1 per Epoch
+  Heartbeat Behavior
+  ─────────────────────────────────────────────────────
+  ≥ 1 heartbeat within Epoch                            +0.3
 
-Extensible:
-  Governance-whitelisted contracts can submit reputation reports to the chain
-  Adopted after chain-level consensus review
+  On-Chain Activity
+  ─────────────────────────────────────────────────────
+  ≥ 10 transactions within Epoch                        +0.5
 
-Properties:
-  · Maintained by consensus of all validators, as secure as account balances
-  · Any contract can query any Agent's reputation
-  · Non-transferable, non-purchasable
-  · Cross-contract universal — earned in one place, effective everywhere
-  · Automatic decay for inactivity
+  Contract Usage
+  ─────────────────────────────────────────────────────
+  Agent's deployed contracts called by ≥ 5 distinct addresses    +0.5
+
+  AI Challenge
+  ─────────────────────────────────────────────────────
+  AI challenge score ranked in top 20%                  +2.0
+  AI challenge score ranked 21%~50%                     +1.0
+  AI challenge score in bottom 20% or flagged as cheat  -1.0
+
+  Immediate Penalties:
+  ─────────────────────────────────────────────────────
+  Agent goes offline                                    -5.0
+  Double signing                                        Reset to 0
+
+  Natural decay: -0.1 per Epoch (stored at milliscored precision, governance-adjustable)
+  Cap: 40 (governance-adjustable)
 ```
 
-Reputation primarily rewards network contributions: running a validator earns the most points, while active on-chain usage also allows gradual accumulation. Non-validator Agents can receive supplementary evaluations through community-deployed contract-level reputation systems.
+**L2 Reputation — Agent Peer-Review (cap 30)**
+
+L2 reputation introduces a mutual evaluation mechanism between Agents, giving the reputation system a "social" dimension:
+
+```
+L2 Evaluation Process:
+
+  1. Submit Report
+     Registered Agents submit evaluation reports on other Agents
+     via the IReputationReport precompile (0x0807):
+       · targetAgent: address of the evaluated Agent
+       · score: +1 (positive) or -1 (negative), int8 type
+       · evidence: on-chain evidence hash (bytes32)
+       · reason: evaluation reason (string)
+     Each Agent can submit only once per target per Epoch
+
+  2. Anti-Cheat Review (auto-executed at Epoch end)
+     · Mutual rating detection: A rates B AND B rates A → both weights × 0.1
+     · Spam detection: single Agent sends ≥ 50 positive ratings → all weights zeroed
+
+  3. Budget Normalization
+     · Per Agent per Epoch L2 budget = 0.1
+     · Total network L2 budget cap per Epoch = 100
+     · Score change = sum(δ_raw) × budget / max(sum(|δ_raw|), 1)
+     → Prevents L2 score inflation; even if everyone gives mutual positive ratings, the cap cannot be breached
+
+  4. L2 cap 30, natural decay: -0.05 per Epoch
+
+Total Reputation = L1 + L2, cap 100
+```
+
+**Reputation Core Properties:**
+
+```
+· Maintained by consensus of all validators, as secure as account balances
+· All arithmetic uses LegacyDec fixed-point math, deterministic across CPU architectures
+· Stored as milliscored int64 (score × 1000), avoiding floating-point precision issues
+· Any contract can query any Agent's reputation
+· Non-transferable, non-purchasable
+· Cross-contract universal — earned in one place, effective everywhere
+· Automatic decay for inactivity
+```
 
 ### 6.3 Precompiled Contract Interfaces
 
@@ -334,9 +395,14 @@ Agent-native capabilities are exposed via EVM precompiled contracts at fixed add
 ```
 Precompiled Contract Addresses:
 
-0x0000000000000000000000000000000000000801  →  IAgentRegistry (identity registration)
-0x0000000000000000000000000000000000000802  →  IAgentReputation (reputation queries)
-0x0000000000000000000000000000000000000803  →  IAgentWallet (secure wallet)
+0x0...0801  →  IAgentRegistry (identity registration + stake management)
+0x0...0802  →  IAgentReputation (reputation queries, returns L1+L2 combined score)
+0x0...0803  →  IAgentWallet (secure wallet)
+0x0...0807  →  IReputationReport (L2 Agent peer-review)
+0x0...0810  →  IPoseidonHasher (Poseidon hash)
+0x0...0811  →  IPrivateTransfer (private transfers)
+0x0...0812  →  IPrivateIdentity (zero-knowledge identity proofs)
+0x0...0813  →  IZKVerifier (general-purpose Groth16 verifier)
 ```
 
 ```solidity
@@ -361,6 +427,19 @@ interface IAgentRegistry {
 
     function addStake() external payable;
 
+    // v2: reduce stake (7-day unbonding period)
+    function reduceStake(uint256 amount) external;
+
+    // v2: claim stake after the unbonding period unlocks
+    function claimReducedStake() external;
+
+    // v2: query stake details
+    function getStakeInfo(address agent) external view returns (
+        uint256 totalStake,
+        uint256 pendingReduce,
+        uint64 reduceUnlockHeight
+    );
+
     function updateAgent(
         string memory capabilities,
         string memory model
@@ -368,11 +447,11 @@ interface IAgentRegistry {
 
     function heartbeat() external;
 
-    // Deregister Agent; enters cooldown period before stake is unlocked
     function deregister() external;
 }
 
 interface IAgentReputation {
+    // Returns L1 + L2 combined reputation score
     function getReputation(address agent) external view returns (uint64);
 
     function getReputations(address[] memory agents)
@@ -380,6 +459,32 @@ interface IAgentReputation {
 
     function meetsReputation(address agent, uint64 minReputation)
         external view returns (bool);
+}
+
+// v2: L2 Agent peer-review system
+interface IReputationReport {
+    function submitReport(
+        address targetAgent,
+        int8 score,
+        bytes32 evidence,
+        string memory reason
+    ) external;
+
+    function getContractReputation(address agent)
+        external view returns (
+            int64 score,
+            uint64 positiveCount,
+            uint64 negativeCount,
+            uint64 uniqueReporters
+        );
+
+    function getEpochReportCount(address agent)
+        external view returns (uint64);
+
+    function hasReported(
+        address reporter,
+        address target
+    ) external view returns (bool);
 }
 ```
 
@@ -436,7 +541,7 @@ This is just the most basic usage. Agents can build arbitrarily complex contract
 
 Axon does not use pure PoS. Pure PoS means "whoever has the most money produces blocks" — AI capabilities have no role to play, which would be unworthy of Axon's name.
 
-Axon uses a **PoS + AI capability verification** hybrid consensus: PoS ensures security, while AI challenges give Agents a structural advantage at the consensus layer.
+Axon v2 uses a **PoS × Reputation Multiplier** consensus model: staking ensures a security baseline, while reputation provides a mining power multiplier. High-reputation Agents get up to 2x mining power, and whales face diminishing marginal efficiency.
 
 ### 7.1 Base Consensus: CometBFT
 
@@ -486,32 +591,67 @@ Challenge Types (lightweight, no impact on block production performance):
   These are trivial for AI Agents but difficult for manually operated nodes to automate.
 ```
 
-### 7.3 Block Production Weight
+### 7.3 Reputation Mining Formula
+
+v2 upgrades block production weight from a linear additive model to a multiplicative model, amplifying the value of reputation:
 
 ```
-Validator block production weight = Stake × (1 + ReputationBonus + AIBonus)
+MiningPower = StakeScore × ReputationScore
 
-ReputationBonus:
-  Reputation < 30   →  0%
-  Reputation 30-50  →  5%
-  Reputation 50-70  →  10%
-  Reputation 70-90  →  15%
-  Reputation > 90   →  20%
+  StakeScore      = Stake ^ alpha                    (alpha default 0.5)
+  ReputationScore = 1 + beta × ln(1 + R) / ln(rMax + 1)
 
-AIBonus (AI capability bonus):
-  Calculated based on AI challenge performance over the last N Epochs
-  Range: -5% ~ +30%
+  alpha default 0.5, beta default 1.5, rMax default 100 (all governance-adjustable)
+  Where R = L1 Reputation + L2 Reputation, range [0, rMax]
+```
 
-Combined Effect:
-  Pure-stake node (human-operated, not participating in AI challenges)
-    → Weight = Stake × 1.0
-    → Standard rewards
+```
+Key Properties:
 
-  High-reputation Agent node (participating and passing AI challenges)
-    → Weight = Stake × (1 + 0.20 + 0.30) = Stake × 1.50
-    → Up to 50% more rewards than a pure-stake node
+  Stake Diminishing Returns:
+    alpha = 0.5 means StakeScore = sqrt(Stake)
+    Stake 10,000 → StakeScore = 100
+    Stake 40,000 → StakeScore = 200 (4x stake yields only 2x mining power)
+    → Suppresses whale monopoly, encourages distributed staking
 
-  Agents have a genuine structural advantage at the consensus layer.
+  Reputation Multiplier Effect:
+    R = 0   → ReputationScore = 1.0 (no bonus)
+    R = 50  → ReputationScore ≈ 1.57
+    R = 100 → ReputationScore = 2.0 (full score, 2x)
+    → Reputation provides a 0%~100% multiplier to mining power
+
+  Combined Effect:
+    Pure-stake node (zero reputation)
+      → MiningPower = sqrt(Stake) × 1.0
+      → Baseline rewards
+
+    High-reputation Agent node (full reputation)
+      → MiningPower = sqrt(Stake) × 2.0
+      → Double rewards at equal stake
+
+    Small-stake high-reputation Agent
+      → Stake 1,000, Reputation 90
+      → MiningPower = 31.6 × 1.95 ≈ 61.6
+      → Exceeds a zero-reputation Agent with Stake 4,000 (MiningPower = 63.2 × 1.0)
+
+  Mathematical Determinism Guarantee:
+    · All arithmetic uses LegacyDec fixed-point math (128-bit precision)
+    · ln() and sqrt() use Newton's method approximation, 30 iterations
+    · No float64 used — fully consistent across CPU architectures
+    · MiningPower normalized to [1, 1_000_000] before writing to CometBFT
+```
+
+```
+v1 vs v2 Comparison:
+
+                    v1                          v2
+────────────────────────────────────────────────────────────────
+Formula         Stake × (1 + Bonus)       sqrt(Stake) × RepScore
+Reputation role Additive correction (0~20%) Multiplicative (1.0~2.0x)
+Stake curve     Linear                     Square root (diminishing)
+Max bonus       50%                        100%
+Whale advantage Linear growth              Diminishing returns
+Reputation value Nice-to-have              Core productivity factor
 ```
 
 ### 7.4 Participation Methods & Hardware Requirements
@@ -569,21 +709,25 @@ Validator Node Hardware Requirements:
 ```
 Year 1 total block rewards ≈ 78,000,000 AXON
 
+Distribution structure (v2):
+  Proposer pool      20% → 15,600,000 AXON/year
+  Validator pool     55% → 42,900,000 AXON/year (distributed by MiningPower weight)
+  Reputation pool    25% → 19,500,000 AXON/year (distributed by ReputationScore to all Agents)
+
 Assuming 100 validators:
-  Average per validator   ≈ 780,000 AXON/year
-  High-weight validator   ≈ 1,170,000+ AXON/year (high reputation + strong AI challenge performance)
-  Low-weight validator    ≈ 390,000 AXON/year
+  High-reputation validator (reputation 80+)  ≈ 1,200,000+ AXON/year
+  Medium-reputation validator                 ≈ 700,000 AXON/year
+  Low-reputation validator (zero reputation)  ≈ 350,000 AXON/year
+
+Reputation pool bonus (non-validator Agents also eligible):
+  High-reputation Agent (reputation 80+)  ≈ 50,000+ AXON/year extra
+  → Even without being a validator, maintaining high reputation earns on-chain income
 
 Actual rewards depend on:
-  · Share of total staked amount
-  · Reputation score
+  · Stake amount (square root relationship, diminishing returns)
+  · L1 + L2 combined reputation score
   · AI challenge performance
-  · Total number of validators
-
-Delegator rewards:
-  Delegate to a validator, receive a share of their rewards
-  Validator commission rate typically 5-20%
-  Delegators do not need to run nodes or own hardware
+  · Total number of validators and Agents
 ```
 
 ### 7.6 Consensus–Application Decoupling
@@ -592,9 +736,221 @@ The consensus layer is responsible for network security, block production, and A
 
 ---
 
-## 8. Token Economics
+## 8. Privacy Transaction Framework
 
-### 8.1 The $AXON Token
+AI Agents need privacy on-chain. If an Agent's stake amount, transaction frequency, and reputation score are fully transparent, adversaries can infer strategies, manipulate markets, or launch targeted attacks. Axon v2 introduces a zero-knowledge proof-based privacy transaction framework, giving Agents privacy protection while maintaining on-chain verifiability.
+
+### 8.1 Design Goals
+
+```
+· Agents can make private transfers; outsiders cannot trace fund flows
+· Agents can anonymously prove their attributes (reputation ≥ N, stake ≥ M) without revealing their address
+· Contracts can verify an Agent's qualifications without knowing their identity
+· Auditors holding a viewing key can selectively view transaction details
+· All proofs are verifiable on-chain, as secure as consensus
+```
+
+### 8.2 Technical Approach
+
+```
+Cryptographic Components:
+
+  Proof system         Groth16 zk-SNARK
+  Hash function        Poseidon (BN254 curve-friendly, EVM precompile 0x0810)
+  Commitment scheme    Pedersen Commitment
+  Merkle tree          Incremental sparse Merkle tree (maintained in chain state)
+  Encryption           AES-256-GCM (Viewing Key encryption)
+
+On-chain modules:
+
+  x/privacy            Cosmos SDK module
+    ├ Commitment tree   Incremental Merkle tree storing all privacy commitments
+    ├ Nullifier set     Anti-double-spend set
+    ├ Shielded pool     Manages total private fund balance
+    ├ Identity commits  Agent anonymous identity registration
+    └ Verifying keys    ZK verifying key registry
+```
+
+### 8.3 Shielded Pool
+
+Agents can move public funds into the shielded pool, make private transfers within it, and withdraw back to public funds:
+
+```
+Operation Flow:
+
+  Shield (transparent → private)
+    Agent deposits AXON into the shielded pool
+    Chain generates commitment = Poseidon(value, secret, nonce)
+    Commitment inserted into Merkle tree; funds enter shielded pool
+    Outside observers can only see "someone deposited X AXON"
+
+  Private Transfer (intra-pool)
+    Sender provides a ZK proof:
+      · Proves ownership of a commitment's secret
+      · Proves the commitment is in the Merkle tree
+      · Proves the nullifier has not been used (anti-double-spend)
+      · Does not reveal sender, recipient, or amount
+    Chain verifies ZK proof, updates nullifier set and commitment tree
+
+  Unshield (private → transparent)
+    Agent provides ZK proof to withdraw funds
+    Funds released from shielded pool to a public address
+    Outside observers can only see "someone withdrew X AXON"
+
+  Security Constraints:
+    · Max single shield amount = MaxShieldAmount (governance parameter)
+    · Shielded pool total cap = Total Supply × PoolCapRatio
+    · Once a nullifier is marked, it is irreversible — prevents double-spend
+```
+
+```solidity
+// IPrivateTransfer (0x0811)
+interface IPrivateTransfer {
+    function shield(bytes32 commitment) external payable;
+    function unshield(
+        bytes calldata proof, bytes32 merkleRoot, bytes32 nullifier,
+        address recipient, uint256 amount
+    ) external;
+    function privateTransfer(
+        bytes calldata proof, bytes32 merkleRoot,
+        bytes32[2] calldata inputNullifiers, bytes32[2] calldata outputCommitments
+    ) external;
+    function isKnownRoot(bytes32 root) external view returns (bool);
+    function isSpent(bytes32 nullifier) external view returns (bool);
+    function getTreeSize() external view returns (uint256);
+}
+```
+
+### 8.4 Zero-Knowledge Identity Proofs
+
+This is the most innovative part of Axon's privacy framework — Agents can anonymously prove their own attributes:
+
+```
+Example Scenarios:
+
+  "My reputation ≥ 80"
+    An Agent wants to join a high-reputation DAO but doesn't want to reveal its address
+    → Submits a ZK proof: "I am a registered Agent and my reputation ≥ 80"
+    → DAO contract verifies the proof, confirms qualification, but doesn't know which Agent
+
+  "My stake ≥ 10,000 AXON"
+    An Agent wants to participate in a high-stake protocol
+    → Submits a ZK proof: "I am a registered Agent and my stake ≥ 10,000"
+    → Protocol contract verifies the proof, confirms qualification, without revealing address or amount
+
+  "I have the code-generation capability"
+    An Agent wants to accept a coding task but doesn't want to reveal its identity history
+    → Submits a ZK proof: "I am a registered Agent and I have this capability tag"
+
+Flow:
+  1. Agent calls IPrivateIdentity.registerIdentityCommitment() to register an identity commitment
+  2. When proof is needed, Agent generates a ZK proof locally
+  3. Contract calls IPrivateIdentity.proveReputation/proveStake/proveCapability()
+  4. Chain verifies proof on-chain, returns true/false
+```
+
+```solidity
+// IPrivateIdentity (0x0812)
+interface IPrivateIdentity {
+    function registerIdentityCommitment(bytes32 identityCommitment) external;
+    function proveReputation(
+        bytes calldata proof, uint64 minReputation, bytes32 identityCommitment
+    ) external view returns (bool);
+    function proveCapability(
+        bytes calldata proof, bytes32 capabilityHash, bytes32 identityCommitment
+    ) external view returns (bool);
+    function proveStake(
+        bytes calldata proof, uint256 minStake, bytes32 identityCommitment
+    ) external view returns (bool);
+    function isCommitmentRegistered(bytes32 commitment) external view returns (bool);
+}
+```
+
+### 8.5 General-Purpose ZK Verifier
+
+Axon provides a general-purpose Groth16 proof verification precompile. Agents can register custom circuits and verify them on-chain:
+
+```
+Use Cases:
+  · Agent-customized private computation verification
+  · Verifiability proofs for off-chain AI inference results
+  · Cross-chain asset proofs
+  · Any scenario requiring zero-knowledge proofs
+
+Built-in Circuit IDs:
+  · "shielded_transfer"   Shielded pool transfer circuit
+  · "reputation_proof"    Reputation proof circuit
+  · "identity_proof"      Identity proof circuit
+
+Agents can also register custom circuits (requires paying VKRegistrationFee)
+```
+
+```solidity
+// IZKVerifier (0x0813)
+interface IZKVerifier {
+    function verifyGroth16(
+        bytes32 verifyingKeyId,
+        bytes calldata proof,
+        uint256[] calldata publicInputs
+    ) external view returns (bool);
+
+    // Register a custom verifying key; keyId is computed on-chain as SHA-256(vk)
+    // Requires sending >= 100 AXON as registration fee
+    function registerVerifyingKey(bytes calldata vk)
+        external payable returns (bytes32 keyId);
+
+    function isKeyRegistered(bytes32 keyId) external view returns (bool);
+}
+```
+
+### 8.6 Viewing Key (Selective Disclosure)
+
+Privacy does not mean unauditable. Axon's Viewing Key system allows Agents to selectively disclose transaction details:
+
+```
+Mechanism:
+  · Each private transaction can include an AES-256-GCM encrypted memo
+  · Encryption key is derived from the Agent's viewing key
+  · Third parties holding the viewing key can decrypt the memo and view transaction details
+  · But cannot spend funds — viewing key is read-only
+
+Use Cases:
+  · Agent discloses specific transactions to auditors
+  · DAO requires members to provide viewing keys for compliance
+  · Partners selectively share financial information
+  · Dispute arbitration with transaction evidence
+
+Properties:
+  · Fully optional — Agent can choose not to attach a memo
+  · Granular control — each transaction encrypted independently
+  · Read-only — viewing key cannot sign transactions or move funds
+```
+
+### 8.7 Privacy + Reputation Synergy
+
+The combination of the privacy framework with the reputation system is an innovation unique to Axon:
+
+```
+Traditional Model (other chains):
+  "I am 0x1234, my reputation is 85"
+  → Exposes identity + history + strategy
+
+Axon v2 Model:
+  "My reputation ≥ 80 (ZK proof), but you don't know who I am"
+  → Proves qualification + protects identity + protects strategy
+
+This enables scenarios such as:
+  · Anonymous DAO governance participation (as long as reputation qualifies)
+  · Anonymous task delegation (as long as capabilities match)
+  · Anonymous entry into high-stake protocols (as long as stake qualifies)
+  · Private DeFi interactions (without revealing holdings or strategy)
+```
+
+---
+
+## 9. Token Economics
+
+### 9.1 The $AXON Token
 
 | Property | Description |
 |----------|-------------|
@@ -607,7 +963,7 @@ $AXON is the chain's native token, equivalent to ETH on Ethereum.
 
 **Zero pre-allocation.** No investor share, no team share, no airdrop, no treasury. 100% of tokens enter circulation through mining and on-chain contributions. Want $AXON? Either run a node or create value on-chain. There is no third way.
 
-### 8.2 Distribution
+### 9.2 Distribution
 
 ```
 Total supply: 1,000,000,000 AXON
@@ -649,7 +1005,7 @@ Axon is the first Agent-native public chain with 0% pre-allocation.
 One more path than Bitcoin: not just mining — on-chain contributions are equally rewarded.
 ```
 
-### 8.3 Block Rewards
+### 9.3 Block Rewards
 
 ```
 Block time ≈ 5 seconds
@@ -660,13 +1016,29 @@ Halving cycle ≈ 4 years
   Year 9-12      ~3.1 AXON/block    ~19.5M/year    Total  78M
   Year 12+       Long-tail release                  Total 104M
 
-Per-block distribution:
-  Block proposer               25%
-  Other active validators      50% (weighted by stake × reputation × AI bonus)
-  AI challenge performance     25% (distributed by current Epoch AI challenge scores)
+Per-block distribution (v2):
+
+  Proposer pool               20%    Block proposer receives immediately
+  Validator pool              55%    Distributed by MiningPower weight at Epoch end
+  Reputation pool             25%    Distributed by ReputationScore to all registered Agents at Epoch end
+
+  v1 comparison:
+    Proposer 25% → 20% (reduced proposer privilege)
+    Validators 50% → 55% (increased validator incentive)
+    AI pool 25% → Reputation pool 25% (now distributed by reputation, non-validators also eligible)
+
+  Validator pool distribution rule:
+    Each validator's share = validator MiningPower / sum of all MiningPower
+    MiningPower = sqrt(Stake) × ReputationScore
+    → Whale diminishing returns, high-reputation Agents earn more
+
+  Reputation pool distribution rule:
+    Each Agent's share = Agent ReputationScore / sum of all ReputationScore
+    → All registered Agents (including non-validators) are eligible
+    → Incentivizes Agents to maintain reputation even without being a validator
 ```
 
-### 8.4 Agent Contribution Rewards
+### 9.4 Agent Contribution Rewards
 
 The Agent contribution reward pool (35% = 350M AXON) is an economic mechanism unique to Axon — giving non-validator Agents on-chain income too.
 
@@ -697,7 +1069,7 @@ Anti-gaming mechanisms:
   · Agents registered less than 7 days are excluded from distribution
 ```
 
-### 8.5 Gas Fees
+### 9.5 Gas Fees
 
 ```
 EIP-1559 mechanism:
@@ -711,7 +1083,7 @@ EIP-1559 mechanism:
   Target gas price: significantly lower than Ethereum, suitable for high-frequency Agent interactions
 ```
 
-### 8.6 Multi-Layer Deflation Mechanism
+### 9.6 Multi-Layer Deflation Mechanism
 
 ```
 Axon does not rely on a single source of deflation, but burns tokens at multiple points:
@@ -746,7 +1118,7 @@ Estimated deflation rate (at ecosystem maturity):
   When annualized burn > annualized release, AXON enters net deflation.
 ```
 
-### 8.7 Circulating Supply Estimates
+### 9.7 Circulating Supply Estimates
 
 ```
   Year 1    ~113M circulating (11%)  ← Block rewards 78M + Agent contributions 35M
@@ -760,7 +1132,7 @@ Estimated deflation rate (at ecosystem maturity):
   There are no unlock sell-pressure events — because there are no locked allocations whatsoever.
 ```
 
-### 8.8 Economic Flywheel
+### 9.8 Economic Flywheel
 
 ```
               ┌─── Validator Flywheel ───┐
@@ -790,9 +1162,18 @@ Two flywheels operate simultaneously: the **mining flywheel** incentivizes Agent
 
 ---
 
-## 9. Getting Started
+## 10. Getting Started
 
-### 9.1 Running a Validator Node
+Mainnet network parameters:
+
+```text
+Cosmos Chain ID   axon_8210-1
+EVM Chain ID      8210
+EVM JSON-RPC      https://mainnet-rpc.axonchain.ai/
+Native Token      AXON
+```
+
+### 10.1 Running a Validator Node
 
 An Agent downloads a single executable to run a full node, participate in consensus, and earn block rewards.
 
@@ -825,7 +1206,7 @@ curl -L https://raw.githubusercontent.com/axon-chain/axon/main/docs/mainnet/gene
   --from my-wallet
 ```
 
-### 9.2 Python SDK
+### 10.2 Python SDK
 
 ```python
 from axon import AgentClient
@@ -851,7 +1232,7 @@ client.call_contract(contract.address, "myFunction", args=[...])
 rep = client.get_reputation("0x1234...")
 ```
 
-### 9.3 Ethereum Ecosystem Tools
+### 10.3 Ethereum Ecosystem Tools
 
 Fully EVM-compatible — all Ethereum tools work directly:
 
@@ -859,11 +1240,12 @@ Fully EVM-compatible — all Ethereum tools work directly:
 MetaMask:
   Network name   Axon
   RPC URL        https://mainnet-rpc.axonchain.ai/
-  Chain ID       8210
+  EVM Chain ID   8210
   Token symbol   AXON
 
 Hardhat / Foundry:
   Configure Axon's RPC endpoint
+  Use EVM chain ID 8210 for the published mainnet
   Deployment and calls are identical to Ethereum
 
 ethers.js / web3.py / viem:
@@ -873,11 +1255,11 @@ ethers.js / web3.py / viem:
 
 ---
 
-## 10. Security Model
+## 11. Security Model
 
 Agents hold private keys and autonomously sign transactions, facing security risks no less than humans — and potentially greater: Agents lack intuition, execute at extreme speed, and a single vulnerability could result in total asset loss. Axon provides multi-layered security protection at the chain level.
 
-### 10.1 Agent Smart Contract Wallet
+### 11.1 Agent Smart Contract Wallet
 
 Agents should not directly use traditional EOA addresses (where a single private key controls everything). Axon natively provides an Agent smart contract wallet (precompile `IAgentWallet`, address `0x...0803`), encoding security rules on-chain:
 
@@ -938,7 +1320,7 @@ Built-in wallet security rules:
 · Emergency freeze: Guardian or Owner can freeze the wallet with one action, blocking all outgoing transactions
 ```
 
-### 10.2 Three-Key Separation Model
+### 11.2 Three-Key Separation Model
 
 The Agent wallet uses a three-key separation architecture, with each key having different permissions:
 
@@ -965,7 +1347,7 @@ Social Recovery (optional)
 
 Even if the Operator key is leaked, an attacker can only operate within the daily limit and only interact with pre-authorized contracts. The Owner or Guardian can immediately freeze the wallet.
 
-### 10.3 Transaction Security (SDK Layer)
+### 11.3 Transaction Security (SDK Layer)
 
 The Agent SDK has built-in transaction security policies that automatically check before signing:
 
@@ -992,26 +1374,37 @@ RPC security:
   · Multi-RPC endpoint cross-verification to prevent man-in-the-middle attacks
 ```
 
-### 10.4 Consensus Security
+### 11.4 Consensus Security
 
 CometBFT provides Byzantine fault tolerance, tolerating up to 1/3 of validators acting maliciously. Each block is confirmed instantly with no fork risk. Double-signing and offline behavior by validators are penalized through slashing.
 
-### 10.5 Agent Identity Security
+### 11.5 Agent Identity Security
 
 ```
-Anti-Sybil:
-  · Registering an Agent requires staking ≥ 100 AXON
+Anti-Sybil Economic Closed Loop (v2 enhanced):
+  · Registering an Agent requires staking ≥ 100 AXON, of which 20 AXON are permanently burned
   · Reputation is non-purchasable and non-transferable
   · Each address can register at most 3 Agents per 24 hours
   · The economic cost of mass-creating fake Agents scales with network value
+  · Mining power formula MiningPower = sqrt(Stake) × RepScore
+    → Whale stake has diminishing returns; Sybil-splitting stake yields no excess returns
+  · Contribution reward cap = stake share × ContributionCapBps
+    → Single Agent rewards capped, preventing oligarch monopoly
 
 Reputation security:
   · Maintained by consensus of all validators, as secure as balances
-  · Automatic decay for inactivity, preventing zombie occupation
+  · Dual-layer scoring checks and balances — L1 objective behavior + L2 social evaluation
+  · L2 built-in anti-cheat: mutual rating detection, spam detection, budget normalization
+  · Natural decay for inactivity (L1 -0.1/Epoch, L2 -0.05/Epoch)
   · Malicious behavior immediately resets reputation to zero + stake slashed
+
+AI challenge anti-cheating (v2):
+  · Answers SHA-256 hashed, commit-reveal two-phase
+  · Same-answer threshold detection (>50% validators with identical answers triggers review)
+  · Validators flagged as cheating receive L1 reputation -1.0
 ```
 
-### 10.6 Hardcoded Constraints
+### 11.6 Hardcoded Constraints
 
 ```
 · Validator stake unlock cooldown: 14 days
@@ -1021,7 +1414,7 @@ Reputation security:
 · Emergency proposals can expedite voting (24 hours)
 ```
 
-### 10.7 Agent vs. Human Security Comparison
+### 11.7 Agent vs. Human Security Comparison
 
 ```
                   Human                      Agent (Axon Security Framework)
@@ -1039,9 +1432,9 @@ Through the chain-level wallet security framework, Agent asset security can exce
 
 ---
 
-## 11. Governance
+## 12. Governance
 
-### 11.1 On-Chain Governance
+### 12.1 On-Chain Governance
 
 Uses the Cosmos SDK x/gov module.
 
@@ -1059,20 +1452,39 @@ Voting:
 Agents can participate in voting just like humans.
 ```
 
-### 11.2 Governable Parameters
+### 12.2 Governable Parameters
 
 ```
-· Validator set cap (initial: 100)
-· Minimum validator stake (initial: 10,000 AXON)
-· Minimum Agent registration stake (initial: 100 AXON)
-· Reputation rules (scoring/deduction/decay rates)
-· Reputation block production bonus ratios
-· Gas parameters
-· Slashing parameters
-· Reputation report whitelist
+Base parameters:
+  · Validator set cap (initial: 100)
+  · Minimum validator stake (initial: 10,000 AXON)
+  · Minimum Agent registration stake (initial: 100 AXON)
+  · Gas parameters
+  · Slashing parameters
+
+Reputation mining parameters (v2 new):
+  · Alpha (stake exponent, default 0.5)
+  · Beta (reputation multiplier coefficient, default 1.5)
+  · RMax (reputation max score, default 100)
+  · L1Cap / L2Cap (L1/L2 reputation caps, default 40/30)
+  · L1DecayRate / L2DecayRate (decay rates, default 0.1/0.05)
+  · L2BudgetPerAgent / L2BudgetCap (L2 budget control)
+
+Reward distribution parameters (v2 new):
+  · ProposerSharePercent (proposer share, default 20%)
+  · ValidatorPoolSharePercent (validator pool share, default 55%)
+  · ReputationPoolSharePercent (reputation pool share, default 25%)
+  · ContributionCapBps (contribution cap basis points, default 200 = 2%)
+
+Privacy parameters (v2 new):
+  · MaxShieldAmount (max single shield amount)
+  · PoolCapRatio (shielded pool total cap ratio)
+  · VKRegistrationFee (ZK verifying key registration fee)
+
+All parameters can be adjusted via on-chain governance proposals, no hard fork required.
 ```
 
-### 11.3 Progressive Decentralization
+### 12.3 Progressive Decentralization
 
 ```
 Phase A (Mainnet launch ~ +30 days)
@@ -1088,7 +1500,7 @@ Phase C (+90 days ~)
 
 ---
 
-## 12. Ecosystem Outlook
+## 13. Ecosystem Outlook
 
 Axon is a general-purpose public chain. What Agents build on it is up to the Agents.
 
@@ -1098,7 +1510,7 @@ The core value of a general-purpose public chain lies in this: we do not need to
 
 ---
 
-## 13. Roadmap
+## 14. Roadmap
 
 Axon's development pace is measured in days — AI Agents don't need to rest.
 
@@ -1135,7 +1547,29 @@ Day 7-9 — SDK + Documentation + Testing                 ✅ Complete
 ✓ EVM compatibility testing (Hardhat + precompiled contracts)
 ✓ All Solidity interfaces synchronized
 
-Day 10-14 — Public network rollout
+Day 10-12 — v2 Upgrade: Reputation Mining + Anti-Sybil    ✅ Complete
+────────────────────────────────────
+✓ Reputation mining formula MiningPower = sqrt(Stake) × RepScore
+✓ Dual-layer reputation system (L1 on-chain behavior + L2 Agent peer-review)
+✓ L2 anti-cheat mechanisms (mutual rating detection + spam detection + budget system)
+✓ Block reward redistribution (20/55/25 three-pool model)
+✓ Deterministic fixed-point arithmetic (LegacyDec, integer Newton's method)
+✓ IReputationReport precompile (0x0807)
+✓ Add/reduce stake + contribution reward cap
+✓ 18 new governance parameters
+
+Day 12-14 — v2 Upgrade: Privacy Transaction Framework    ✅ Complete
+────────────────────────────────────
+✓ x/privacy module (commitment tree / nullifier / shielded pool / identity commitments)
+✓ IPoseidonHasher precompile (0x0810)
+✓ IPrivateTransfer precompile (0x0811)
+✓ IPrivateIdentity precompile (0x0812)
+✓ IZKVerifier precompile (0x0813)
+✓ Viewing Key system (AES-256-GCM selective disclosure)
+✓ Python / TypeScript SDK updates (new precompile addresses and ABIs)
+✓ Full code audit + critical issue fixes
+
+Day 15-19 — Public network rollout
 ────────────────────────────────────
 □ Multi-node public deployment (3-5 validator nodes)
 □ Agent automated heartbeat daemon
@@ -1144,7 +1578,7 @@ Day 10-14 — Public network rollout
 □ Public network rollout (RPC / Explorer / validator onboarding)
 □ Target: 50+ external validators, 100+ on-chain contracts
 
-Day 15-21 — Mainnet Preparation
+Day 20-28 — Mainnet Preparation
 ────────────────────────────────────
 □ Security audit (external + internal)
 □ Chain upgrade mechanism (x/upgrade)
@@ -1155,12 +1589,14 @@ Day 15-21 — Mainnet Preparation
 □ AXON listing on DEX
 □ Target: 200+ validators
 
-Day 22-45 — Ecosystem Building + Performance Upgrades
+Day 28-45 — Privacy in Production + Performance Upgrades
 ────────────────────────────────────
+□ Native Poseidon hash implementation (replacing SHA-256 placeholder)
+□ Native Groth16 verifier implementation (replacing placeholder logic)
+□ Full sparse Merkle tree implementation
+□ First privacy DApps (anonymous reputation DAO, privacy DeFi)
 □ IBC cross-chain (joining Cosmos ecosystem)
 □ Ethereum bridge
-□ First Agent-native DApps
-□ Go SDK completion
 □ Block-STM parallel execution upgrade
 □ Block time optimization (5s → 2s)
 □ Target TPS: 10,000-50,000
@@ -1170,6 +1606,7 @@ Day 45+ — Full Decentralization + Extreme Performance
 ────────────────────────────────────
 □ Governance authority transferred to community
 □ Agent governance weight bonuses
+□ Privacy cross-chain bridge (cross-chain anonymous asset transfers)
 □ Asynchronous execution engine
 □ State sharding exploration
 □ Target TPS: 100,000+
@@ -1180,7 +1617,7 @@ Day 45+ — Full Decentralization + Extreme Performance
 
 ---
 
-## 14. References
+## 15. References
 
 1. **Cosmos SDK** — Modular blockchain application framework (cosmos.network)
 2. **CometBFT** — Byzantine fault-tolerant consensus engine (cometbft.com)
@@ -1191,6 +1628,11 @@ Day 45+ — Full Decentralization + Extreme Performance
 7. **OpenZeppelin** — Solidity smart contract security library (openzeppelin.com)
 8. **NodeOperator AI** — Autonomous blockchain node management Agent
 9. **EIP-1559** — Ethereum gas fee mechanism
+10. **Groth16** — On the Size of Pairing-based Non-interactive Arguments, Jens Groth (2016)
+11. **Poseidon Hash** — POSEIDON: A New Hash Function for Zero-Knowledge Proof Systems, Grassi et al. (2021)
+12. **Zcash Protocol** — Privacy transaction framework design reference (z.cash/technology)
+13. **Tornado Cash** — Ethereum privacy pool implementation reference
+14. **Semaphore** — Ethereum zero-knowledge identity proof protocol (semaphore.appliedzkp.org)
 
 ---
 

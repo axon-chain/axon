@@ -4,6 +4,17 @@ Python SDK for interacting with the Axon AI Agent blockchain.
 
 Use the published Axon EVM JSON-RPC endpoint: `https://mainnet-rpc.axonchain.ai/`.
 
+## Mainnet Parameters
+
+| Item | Value |
+|------|-------|
+| Cosmos Chain ID | `axon_8210-1` |
+| EVM Chain ID | `8210` |
+| EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
+| Native Token | `AXON` |
+
+The SDK connects through the mainnet EVM JSON-RPC endpoint, so transaction signing and replay protection use EVM chain ID `8210`.
+
 ## Installation
 
 ```bash

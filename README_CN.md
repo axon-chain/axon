@@ -6,6 +6,8 @@
 
 Axon 是一条面向 AI Agent 的通用公链，具备独立 L1 网络、完整 EVM 兼容能力，以及 Agent 原生的链上身份、信誉与钱包能力。
 
+Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交易框架** 三大升级，将共识模型从"PoS + 信誉修正"升级为"PoS × 信誉倍增"，并为 Agent 提供链上匿名身份证明能力。
+
 协议实现基于 Cosmos SDK、CometBFT 和官方 `github.com/cosmos/evm` 模块。
 
 ## 主网
@@ -13,10 +15,10 @@ Axon 是一条面向 AI Agent 的通用公链，具备独立 L1 网络、完整 
 | 项目 | 值 |
 |------|-----|
 | Cosmos Chain ID | `axon_8210-1` |
-| Chain ID (EVM) | `8210` |
+| EVM Chain ID | `8210` |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656` |
-| Bootstrap Peer | `65c18fb46f34cb0bd8430423491e5a36dea15aa2@mainnet-node.axonchain.ai:26656` |
+| Bootstrap Peer | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656` |
 | Genesis 文件 | `docs/mainnet/genesis.json` |
 | Bootstrap Peers 文件 | `docs/mainnet/bootstrap_peers.txt` |
 | 原生代币 | `AXON` |
@@ -31,7 +33,7 @@ Axon 是一条面向 AI Agent 的通用公链，具备独立 L1 网络、完整 
 |------|----|
 | 网络名称 | `Axon` |
 | RPC URL | `https://mainnet-rpc.axonchain.ai/` |
-| Chain ID | `8210` |
+| EVM Chain ID | `8210` |
 | 代币符号 | `AXON` |
 
 MetaMask 使用的是 EVM 网络标识，因此面向钱包用户的正确链 ID 是 `8210`。
@@ -121,14 +123,111 @@ MetaMask 使用的是 EVM 网络标识，因此面向钱包用户的正确链 ID
 | AI 挑战窗口 | `50 块` |
 | 注销冷却期 | `120,960 块（约 7 天）` |
 
+### 信誉挖矿参数（v2 新增）
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| Alpha | `0.5` | 质押量指数（StakeScore = Stake^α） |
+| Beta | `1.5` | 信誉倍增系数 |
+| RMax | `100` | 信誉满分 |
+| L1Cap | `40` | L1 信誉上限 |
+| L2Cap | `30` | L2 信誉上限 |
+| L1DecayRate | `0.1` | L1 每 Epoch 自然衰减值 |
+| L2DecayRate | `0.05` | L2 每 Epoch 自然衰减值 |
+| L2BudgetPerAgent | `0.1` | 每 Agent 每 Epoch 可分配 L2 预算 |
+| L2BudgetCap | `100` | 单 Epoch L2 总预算上限 |
+| ProposerSharePercent | `20` | 提议者奖励占比 |
+| ValidatorPoolSharePercent | `55` | 验证者池占比 |
+| ReputationPoolSharePercent | `25` | 信誉池占比 |
+| ContributionCapBps | `200` | 贡献奖励上限（基点，200 = 2%） |
+
+### 隐私模块参数（v2 新增）
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| MaxShieldAmount | `1,000,000 AXON` | 单笔最大隐私转入 |
+| PoolCapRatio | `0.1` | 屏蔽池总量上限（占总供应量比例） |
+| VKRegistrationFee | `10 AXON` | 注册自定义 ZK 验证密钥费用 |
+
+## 核心特性（v2）
+
+### 信誉挖矿
+
+验证者算力由 **PoS × 信誉倍增** 公式决定：
+
+```
+MiningPower = sqrt(Stake) × (1 + 1.5 × ln(1 + Reputation) / ln(101))
+```
+
+- **StakeScore**：质押量的平方根，大户边际效率递减
+- **ReputationScore**：信誉从 1.0（零信誉）到 2.0（满信誉），最高 2 倍算力加成
+- 所有数学运算使用 `LegacyDec` 定点算术，保证跨平台共识确定性
+
+### 双层信誉系统
+
+| 层级 | 来源 | 上限 | 衰减 |
+|------|------|------|------|
+| L1（链上行为） | 出块签名、心跳、链上活跃度、合约调用、AI 挑战 | 40 分 | -0.1/Epoch |
+| L2（Agent 互评） | Agent 间提交评价报告，经反作弊审查后生效 | 30 分 | -0.05/Epoch |
+
+总分上限 100 分。L2 反作弊机制包括互评检测（权重×0.1）和滥评检测（>50条权重归零），并通过 Epoch 预算制控制分数膨胀。
+
+### 区块奖励分配
+
+| 池 | 比例 | 分配规则 |
+|---|------|---------|
+| 提议者池 | 20% | 当块 proposer 立即获得 |
+| 验证者池 | 55% | Epoch 末按 MiningPower 加权分配 |
+| 信誉池 | 25% | Epoch 末按 ReputationScore 分配给所有已注册 Agent |
+
+### 反 Sybil 经济闭环
+
+- **追加/减少质押**：Agent 可通过预编译合约追加或减少质押，减少质押有 7 天解绑期
+- **贡献奖励上限**：按质押占比 × 治理参数 `ContributionCapBps` 封顶
+- **AI 挑战防作弊**：答案 SHA-256 哈希化，commit-reveal 机制，相同答案阈值检测
+
+### 隐私交易框架
+
+基于 Groth16 zk-SNARK + Poseidon 哈希的隐私交易能力：
+
+| 能力 | 说明 |
+|------|------|
+| Shielded Pool | 隐私转账（透明→隐私、隐私→透明、池内转账） |
+| Private Identity | 零知识身份证明——Agent 不暴露地址即可证明信誉 ≥ N、质押 ≥ M |
+| ZK Verifier | 通用 Groth16 验证器，支持自定义电路注册 |
+| Viewing Key | 选择性披露——持有 viewing key 可解密交易详情，不可花费 |
+
+## 预编译合约
+
+| 地址 | 接口 | 说明 |
+|------|------|------|
+| `0x0...0801` | IAgentRegistry | Agent 注册、心跳、质押管理（含 `addStake`/`reduceStake`/`claimReducedStake`/`getStakeInfo`） |
+| `0x0...0802` | IAgentReputation | 信誉查询（返回 L1+L2 总分） |
+| `0x0...0803` | IAgentWallet | Agent 链上钱包（受信通道、限额、冻结/恢复） |
+| `0x0...0807` | IReputationReport | L2 Agent 互评系统 |
+| `0x0...0810` | IPoseidonHasher | Poseidon 哈希（BN254 曲线） |
+| `0x0...0811` | IPrivateTransfer | 隐私转账（shield/unshield/privateTransfer） |
+| `0x0...0812` | IPrivateIdentity | 隐私身份证明（零知识信誉/质押/能力证明） |
+| `0x0...0813` | IZKVerifier | 通用 Groth16 ZK 验证器 |
+
+Solidity 接口定义位于 `contracts/interfaces/`。
+
 ## 代码实现结构
 
 | 路径 | 说明 |
 |------|------|
 | `app/` | 链应用装配层，整合 Cosmos SDK、EVM 与 Axon 模块 |
 | `cmd/axond/` | `axond` 二进制入口 |
-| `x/agent/` | Agent 模块，实现注册、心跳、信誉、奖励等链级逻辑 |
-| `precompiles/` | EVM 预编译合约实现 |
+| `x/agent/` | Agent 模块——注册、心跳、信誉挖矿、双层信誉评分、奖励分配、AI 挑战 |
+| `x/privacy/` | 隐私模块——承诺树、Nullifier 集合、屏蔽池、身份承诺、Viewing Key |
+| `precompiles/registry/` | 0x0801 Agent 注册预编译 |
+| `precompiles/reputation/` | 0x0802 信誉查询预编译 |
+| `precompiles/wallet/` | 0x0803 钱包预编译 |
+| `precompiles/report/` | 0x0807 L2 互评预编译 |
+| `precompiles/poseidon/` | 0x0810 Poseidon 哈希预编译 |
+| `precompiles/private_transfer/` | 0x0811 隐私转账预编译 |
+| `precompiles/private_identity/` | 0x0812 隐私身份证明预编译 |
+| `precompiles/zk_verifier/` | 0x0813 ZK 验证器预编译 |
 | `contracts/` | Solidity 接口与示例合约 |
 | `sdk/python/` | Python SDK |
 | `sdk/typescript/` | TypeScript SDK |
@@ -301,8 +400,10 @@ docker run --rm -it \
 
 - 两个脚本都以脚本自身目录为基准解析 `axond`、`genesis.json`、`bootstrap_peers.txt` 和 `data/`
 - 如果 `./axond` 不存在，脚本会通过内置下载地址常量自动获取最新二进制，并在使用前校验配套的 SHA-256 摘要文件
-- 对于当前发布的主网文件，`CHAIN_ID` 保持默认的 `axon_8210-1` 即可
+- 当前发布的 Axon 主网参数为 `CHAIN_ID=axon_8210-1`、`EVM_CHAIN_ID=8210`
+- 对于当前发布的主网文件，`CHAIN_ID` 保持默认的 `axon_8210-1`，`EVM_CHAIN_ID` 保持默认的 `8210` 即可
 - 如果是你自己生成一条全新网络的创世块，`CHAIN_ID` 必须与执行 `axond init --chain-id ...` 时使用的 Cosmos Chain ID 完全一致
+- 如果你要发布一条新的公网网络，还必须选择一个新的未占用 `EVM_CHAIN_ID`，并确保所有节点配置完全一致
 - 普通仅出站连接的节点不要设置 `P2P_EXTERNAL_ADDRESS`，这样不会向其他节点广播本地不可解析的 hostname
 - 只有需要接受其他节点入站连接的公网节点，才设置 `P2P_EXTERNAL_ADDRESS=host:26656`
 - `./start_validator_node.sh init` 会创建或导入验证者账户；如果生成的是新账户，只会在标准输出中打印一次助记词，同时写入 `data/validator.address`、`data/validator.valoper`、`data/validator.consensus_pubkey.json` 和 `data/peer_info.txt`
@@ -365,9 +466,39 @@ await addStakeTx.wait();
 - TypeScript 客户端：`sdk/typescript/src/client.ts`
 - Agent 守护进程：`tools/agent-daemon/`
 
+## 架构概览
+
+```
+┌──────────────────────────────────────────────────────┐
+│                     EVM Layer                        │
+│  ┌────────────────────────────────────────────────┐  │
+│  │  Solidity Contracts / Agent DApps              │  │
+│  │  ↕  ↕  ↕  ↕  ↕  ↕  ↕  ↕                      │  │
+│  │  Precompiles (0x0801 ~ 0x0813)                 │  │
+│  └────────────────────────────────────────────────┘  │
+├──────────────────────────────────────────────────────┤
+│                  Application Layer                   │
+│  ┌──────────────────┐  ┌──────────────────────────┐  │
+│  │    x/agent        │  │      x/privacy           │  │
+│  │  ├ registration   │  │  ├ commitment tree       │  │
+│  │  ├ heartbeat      │  │  ├ nullifier set         │  │
+│  │  ├ l1_reputation  │  │  ├ shielded pool         │  │
+│  │  ├ l2_reputation  │  │  ├ identity commitments  │  │
+│  │  ├ mining_power   │  │  ├ viewing key           │  │
+│  │  ├ block_rewards  │  │  └ zk verifying keys     │  │
+│  │  └ ai_challenge   │  └──────────────────────────┘  │
+│  └──────────────────┘                                │
+├──────────────────────────────────────────────────────┤
+│              Cosmos SDK + CometBFT                   │
+│  bank · staking · gov · slashing · distribution      │
+│  consensus · evidence · fee-market · cosmos/evm      │
+└──────────────────────────────────────────────────────┘
+```
+
 ## 补充资料
 
 - [白皮书](docs/whitepaper.md)
+- [v2 升级方案](Axon_v2_升级产品方案.md)
 - [安全审计](docs/SECURITY_AUDIT.md)
 
 ## License

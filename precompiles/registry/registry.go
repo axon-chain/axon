@@ -2,6 +2,7 @@ package registry
 
 import (
 	"fmt"
+	"math/big"
 	"strings"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
@@ -24,21 +25,27 @@ var (
 )
 
 const (
-	IsAgentMethod     = "isAgent"
-	GetAgentMethod    = "getAgent"
-	RegisterMethod    = "register"
-	AddStakeMethod    = "addStake"
-	UpdateAgentMethod = "updateAgent"
-	HeartbeatMethod   = "heartbeat"
-	DeregisterMethod  = "deregister"
+	IsAgentMethod           = "isAgent"
+	GetAgentMethod          = "getAgent"
+	RegisterMethod          = "register"
+	AddStakeMethod          = "addStake"
+	ReduceStakeMethod       = "reduceStake"
+	ClaimReducedStakeMethod = "claimReducedStake"
+	GetStakeInfoMethod      = "getStakeInfo"
+	UpdateAgentMethod       = "updateAgent"
+	HeartbeatMethod         = "heartbeat"
+	DeregisterMethod        = "deregister"
 
-	GasIsAgent    = 200
-	GasGetAgent   = 1000
-	GasRegister   = 50000
-	GasAddStake   = 30000
-	GasUpdate     = 10000
-	GasHeartbeat  = 5000
-	GasDeregister = 20000
+	GasIsAgent           = 200
+	GasGetAgent          = 1000
+	GasRegister          = 50000
+	GasAddStake          = 30000
+	GasReduceStake       = 30000
+	GasClaimReducedStake = 30000
+	GasGetStakeInfo      = 500
+	GasUpdate            = 10000
+	GasHeartbeat         = 5000
+	GasDeregister        = 20000
 )
 
 type Precompile struct {
@@ -83,6 +90,12 @@ func (p Precompile) RequiredGas(input []byte) uint64 {
 		return GasRegister
 	case AddStakeMethod:
 		return GasAddStake
+	case ReduceStakeMethod:
+		return GasReduceStake
+	case ClaimReducedStakeMethod:
+		return GasClaimReducedStake
+	case GetStakeInfoMethod:
+		return GasGetStakeInfo
 	case UpdateAgentMethod:
 		return GasUpdate
 	case HeartbeatMethod:
@@ -102,7 +115,7 @@ func (p Precompile) Run(evm *vm.EVM, contract *vm.Contract, readonly bool) ([]by
 
 func (p Precompile) IsTransaction(method *abi.Method) bool {
 	switch method.Name {
-	case RegisterMethod, AddStakeMethod, UpdateAgentMethod, HeartbeatMethod, DeregisterMethod:
+	case RegisterMethod, AddStakeMethod, ReduceStakeMethod, ClaimReducedStakeMethod, UpdateAgentMethod, HeartbeatMethod, DeregisterMethod:
 		return true
 	default:
 		return false
@@ -124,6 +137,12 @@ func (p Precompile) execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 		return p.register(ctx, evm, contract, method, args)
 	case AddStakeMethod:
 		return p.addStake(ctx, evm, contract, method)
+	case ReduceStakeMethod:
+		return p.reduceStake(ctx, evm, contract, method, args)
+	case ClaimReducedStakeMethod:
+		return p.claimReducedStake(ctx, evm, contract, method)
+	case GetStakeInfoMethod:
+		return p.getStakeInfo(ctx, evm, contract, method, args)
 	case UpdateAgentMethod:
 		return p.updateAgent(ctx, evm, contract, method, args)
 	case HeartbeatMethod:
@@ -278,6 +297,52 @@ func (p Precompile) deregister(ctx sdk.Context, evm *vm.EVM, contract *vm.Contra
 	return method.Outputs.Pack()
 }
 
+func (p Precompile) reduceStake(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	if len(args) < 1 {
+		return nil, fmt.Errorf("reduceStake requires 1 argument: amount")
+	}
+	amountBig, ok := args[0].(*big.Int)
+	if !ok {
+		return nil, fmt.Errorf("amount: expected *big.Int, got %T", args[0])
+	}
+
+	caller := p.resolveAgentSender(ctx, evm, contract)
+	amount := sdk.NewCoin("aaxon", sdkmath.NewIntFromBigInt(amountBig))
+
+	if err := p.keeper.ReduceStakeFromAgent(ctx, caller.String(), amount); err != nil {
+		return nil, err
+	}
+
+	return method.Outputs.Pack()
+}
+
+func (p Precompile) claimReducedStake(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method) ([]byte, error) {
+	caller := p.resolveAgentSender(ctx, evm, contract)
+	if err := p.keeper.ClaimReducedStake(ctx, caller.String()); err != nil {
+		return nil, err
+	}
+
+	return method.Outputs.Pack()
+}
+
+func (p Precompile) getStakeInfo(ctx sdk.Context, _ *vm.EVM, _ *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
+	if len(args) < 1 {
+		return nil, fmt.Errorf("getStakeInfo requires 1 argument: agent address")
+	}
+	addr, ok := args[0].(common.Address)
+	if !ok {
+		return nil, fmt.Errorf("invalid address argument")
+	}
+
+	cosmosAddr := sdk.AccAddress(addr.Bytes())
+	totalStake, pendingReduce, reduceUnlockHeight, found := p.keeper.GetStakeInfo(ctx, cosmosAddr.String())
+	if !found {
+		return method.Outputs.Pack(big.NewInt(0), big.NewInt(0), uint64(0))
+	}
+
+	return method.Outputs.Pack(totalStake.BigInt(), pendingReduce.BigInt(), uint64(reduceUnlockHeight))
+}
+
 // resolveRegisterSender binds new registration to tx origin.
 // This avoids intermediary contracts becoming the newly-registered account.
 func resolveRegisterSender(evm *vm.EVM, contract *vm.Contract) sdk.AccAddress {
@@ -341,6 +406,31 @@ const abiJSON = `[
 		"name": "addStake",
 		"outputs": [],
 		"stateMutability": "payable",
+		"type": "function"
+	},
+	{
+		"inputs": [{"name": "amount", "type": "uint256"}],
+		"name": "reduceStake",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "claimReducedStake",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
+	},
+	{
+		"inputs": [{"name": "account", "type": "address"}],
+		"name": "getStakeInfo",
+		"outputs": [
+			{"name": "totalStake", "type": "uint256"},
+			{"name": "pendingReduce", "type": "uint256"},
+			{"name": "reduceUnlockHeight", "type": "uint64"}
+		],
+		"stateMutability": "view",
 		"type": "function"
 	},
 	{

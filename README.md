@@ -1,5 +1,9 @@
 # Axon
 
+[![Release](https://github.com/axon-chain/axon/actions/workflows/release.yml/badge.svg)](https://github.com/axon-chain/axon/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/axon-chain/axon)](https://github.com/axon-chain/axon/releases/latest)
+[![License](https://img.shields.io/github/license/axon-chain/axon)](LICENSE)
+
 > 🌐 [中文版](README_CN.md)
 
 ### The World Computer For Agents

@@ -26,6 +26,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Resolve version
         id: version
         shell: bash
@@ -40,23 +43,43 @@ jobs:
       - name: Build release matrix
         shell: bash
         run: |
-          bash packaging/build_release_matrix.sh \
-            --version "${{ steps.version.outputs.version }}" \
-            --notes CHANGELOG.md
+          VERSION="${{ steps.version.outputs.version }}" \
+            OUT_DIR="${{ github.workspace }}/dist/releases" \
+            RELEASE_NOTES_FILE="${{ github.workspace }}/CHANGELOG.md" \
+            make package-all
+
+      - name: Prepare direct-download binaries
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          VERSION_PLAIN="${VERSION#v}"
+          RELEASE_DIR="dist/releases/${VERSION}"
+
+          cp "${RELEASE_DIR}/axond_${VERSION_PLAIN}_linux_amd64/axond" "${RELEASE_DIR}/axond_linux_amd64"
+          cp "${RELEASE_DIR}/axond_${VERSION_PLAIN}_linux_arm64/axond" "${RELEASE_DIR}/axond_linux_arm64"
+
+          sha256sum "${RELEASE_DIR}/axond_linux_amd64" | awk '{print $1}' > "${RELEASE_DIR}/axond_linux_amd64.sha256"
+          sha256sum "${RELEASE_DIR}/axond_linux_arm64" | awk '{print $1}' > "${RELEASE_DIR}/axond_linux_arm64.sha256"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
           name: release-${{ steps.version.outputs.version }}
           path: dist/releases/${{ steps.version.outputs.version }}/
+          if-no-files-found: error
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.version }}
+          name: ${{ steps.version.outputs.version }}
           generate_release_notes: true
           files: |
             dist/releases/${{ steps.version.outputs.version }}/*.tar.gz
             dist/releases/${{ steps.version.outputs.version }}/*.zip
+            dist/releases/${{ steps.version.outputs.version }}/axond_linux_amd64
+            dist/releases/${{ steps.version.outputs.version }}/axond_linux_amd64.sha256
+            dist/releases/${{ steps.version.outputs.version }}/axond_linux_arm64
+            dist/releases/${{ steps.version.outputs.version }}/axond_linux_arm64.sha256
             dist/releases/${{ steps.version.outputs.version }}/SHA256SUMS
             dist/releases/${{ steps.version.outputs.version }}/BUILD_REPORT.md

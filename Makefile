@@ -121,4 +121,9 @@ package-agent:
 package-all:
 	@echo "Building release matrix with Dockerized Go toolchain..."
 	@echo "  Builder Image: $${PACKAGING_DOCKER_IMAGE:-golang:1.25.7-trixie}"
-	@bash packaging/build_release_matrix.sh
+	@VERSION="$(VERSION)" \
+	OUT_DIR="$(OUT_DIR)" \
+	RELEASE_NOTES_FILE="$(RELEASE_NOTES_FILE)" \
+	AXOND_CGO_ENABLED="$(AXOND_CGO_ENABLED)" \
+	PACKAGING_DOCKER_IMAGE="$${PACKAGING_DOCKER_IMAGE:-golang:1.25.7-trixie}" \
+	bash packaging/build_release_matrix.sh

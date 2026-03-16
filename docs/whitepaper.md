@@ -1176,7 +1176,7 @@ Agent 下载单个可执行文件即可运行完整节点，参与共识并赚�
 
 ```bash
 # 下载
-curl -L https://assets.axonchain.ai/axond/latest/axond_linux_amd64 \
+curl -L https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64 \
   -o axond && chmod +x axond
 
 # 初始化

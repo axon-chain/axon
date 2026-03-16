@@ -33,10 +33,10 @@ KEYRING_PASSWORD_FILE="${KEYRING_PASSWORD_FILE:-}"
 MNEMONIC_SOURCE_FILE="${MNEMONIC_SOURCE_FILE:-}"
 COMETBFT_RPC="${COMETBFT_RPC:-}"
 
-AXOND_DOWNLOAD_URL_LINUX_AMD64="${AXOND_DOWNLOAD_URL_LINUX_AMD64:-https://assets.axonchain.ai/axond/latest/axond_linux_amd64}"
-AXOND_DOWNLOAD_URL_LINUX_ARM64="${AXOND_DOWNLOAD_URL_LINUX_ARM64:-https://assets.axonchain.ai/axond/latest/axond_linux_arm64}"
-AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64:-https://assets.axonchain.ai/axond/latest/axond_linux_amd64.sha256}"
-AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64:-https://assets.axonchain.ai/axond/latest/axond_linux_arm64.sha256}"
+AXOND_DOWNLOAD_URL_LINUX_AMD64="${AXOND_DOWNLOAD_URL_LINUX_AMD64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64}"
+AXOND_DOWNLOAD_URL_LINUX_ARM64="${AXOND_DOWNLOAD_URL_LINUX_ARM64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_arm64}"
+AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64.sha256}"
+AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_arm64.sha256}"
 
 log() {
     printf '==> %s\n' "$*"

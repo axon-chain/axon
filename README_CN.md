@@ -332,7 +332,7 @@ shasum -a 256 axond_<version>_<os>_<arch>.tar.gz
 | `scripts/start_validator_node.sh` | 管理验证者初始化、账户生成、`create-validator` 提交和节点启动 |
 | `scripts/start_sync_node.sh` | 初始化本地同步节点数据并启动节点 |
 
-从仓库手动下载：
+从 GitHub 手动部署：
 
 ```bash
 mkdir -p /opt/axon-node
@@ -345,6 +345,15 @@ curl -fsSLo bootstrap_peers.txt https://raw.githubusercontent.com/axon-chain/axo
 chmod 0755 start_validator_node.sh start_sync_node.sh
 printf 'replace-with-a-strong-passphrase\n' > keyring.pass
 chmod 0600 keyring.pass
+```
+
+也可以直接预下载最新 GitHub Release 二进制：
+
+```bash
+curl -fsSLo axond https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64
+curl -fsSLo axond.sha256 https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64.sha256
+echo "$(cat axond.sha256)  axond" | sha256sum -c -
+chmod 0755 axond
 ```
 
 本机直接执行：
@@ -399,7 +408,7 @@ docker run --rm -it \
 运行特性：
 
 - 两个脚本都以脚本自身目录为基准解析 `axond`、`genesis.json`、`bootstrap_peers.txt` 和 `data/`
-- 如果 `./axond` 不存在，脚本会通过内置下载地址常量自动获取最新二进制，并在使用前校验配套的 SHA-256 摘要文件
+- 如果 `./axond` 不存在，脚本会通过 GitHub Releases 的 `latest/download` 资产地址自动获取最新二进制，并在使用前校验配套的 SHA-256 摘要文件
 - 当前发布的 Axon 主网参数为 `CHAIN_ID=axon_8210-1`、`EVM_CHAIN_ID=8210`
 - 对于当前发布的主网文件，`CHAIN_ID` 保持默认的 `axon_8210-1`，`EVM_CHAIN_ID` 保持默认的 `8210` 即可
 - 如果是你自己生成一条全新网络的创世块，`CHAIN_ID` 必须与执行 `axond init --chain-id ...` 时使用的 Cosmos Chain ID 完全一致

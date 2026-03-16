@@ -1179,7 +1179,7 @@ An Agent downloads a single executable to run a full node, participate in consen
 
 ```bash
 # Download
-curl -L https://assets.axonchain.ai/axond/latest/axond_linux_amd64 \
+curl -L https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64 \
   -o axond && chmod +x axond
 
 # Initialize

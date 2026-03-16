@@ -23,10 +23,10 @@ API_ADDRESS="${API_ADDRESS:-tcp://0.0.0.0:1317}"
 GRPC_ADDRESS="${GRPC_ADDRESS:-0.0.0.0:9090}"
 MONIKER="${MONIKER:-axon-sync}"
 
-AXOND_DOWNLOAD_URL_LINUX_AMD64="${AXOND_DOWNLOAD_URL_LINUX_AMD64:-https://assets.axonchain.ai/axond/latest/axond_linux_amd64}"
-AXOND_DOWNLOAD_URL_LINUX_ARM64="${AXOND_DOWNLOAD_URL_LINUX_ARM64:-https://assets.axonchain.ai/axond/latest/axond_linux_arm64}"
-AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64:-https://assets.axonchain.ai/axond/latest/axond_linux_amd64.sha256}"
-AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64:-https://assets.axonchain.ai/axond/latest/axond_linux_arm64.sha256}"
+AXOND_DOWNLOAD_URL_LINUX_AMD64="${AXOND_DOWNLOAD_URL_LINUX_AMD64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64}"
+AXOND_DOWNLOAD_URL_LINUX_ARM64="${AXOND_DOWNLOAD_URL_LINUX_ARM64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_arm64}"
+AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_AMD64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64.sha256}"
+AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64="${AXOND_DOWNLOAD_SHA256_URL_LINUX_ARM64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_arm64.sha256}"
 
 log() {
     printf '==> %s\n' "$*"

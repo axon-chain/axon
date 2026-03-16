@@ -7,7 +7,7 @@ Public node startup scripts:
 
 Each script is self-contained and resolves paths relative to its own directory.
 
-- `axond` is expected at `./axond` and is downloaded automatically when missing
+- `axond` is expected at `./axond` and is downloaded automatically from the latest GitHub Release asset when missing
 - downloaded binaries are verified against the matching `.sha256` sidecar file before use
 - `genesis.json` is expected at `./genesis.json`
 - `bootstrap_peers.txt` is expected at `./bootstrap_peers.txt`

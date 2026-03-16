@@ -326,7 +326,7 @@ Supported public scripts:
 | `scripts/start_validator_node.sh` | Manage validator initialization, account creation, `create-validator` submission, and node startup |
 | `scripts/start_sync_node.sh` | Initialize local sync-node data and start the node |
 
-Manual download from this repository:
+Manual setup from GitHub:
 
 ```bash
 mkdir -p /opt/axon-node
@@ -339,6 +339,15 @@ curl -fsSLo bootstrap_peers.txt https://raw.githubusercontent.com/axon-chain/axo
 chmod 0755 start_validator_node.sh start_sync_node.sh
 printf 'replace-with-a-strong-passphrase\n' > keyring.pass
 chmod 0600 keyring.pass
+```
+
+Optional pre-download from the latest GitHub Release:
+
+```bash
+curl -fsSLo axond https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64
+curl -fsSLo axond.sha256 https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64.sha256
+echo "$(cat axond.sha256)  axond" | sha256sum -c -
+chmod 0755 axond
 ```
 
 Local execution:
@@ -393,7 +402,7 @@ Use the same Docker wrapper for `./start_validator_node.sh create-validator` and
 Runtime behavior:
 
 - each script resolves `axond`, `genesis.json`, `bootstrap_peers.txt`, and `data/` relative to its own directory
-- if `./axond` is missing, the script downloads the latest binary from the built-in release URL constant and verifies its SHA-256 sidecar file before use
+- if `./axond` is missing, the script downloads the latest binary from the GitHub Releases `latest/download` asset URL and verifies its SHA-256 sidecar file before use
 - the published Axon mainnet parameters are `CHAIN_ID=axon_8210-1` and `EVM_CHAIN_ID=8210`
 - for the published mainnet files, leave `CHAIN_ID` at the default `axon_8210-1` and `EVM_CHAIN_ID` at the default `8210`
 - if you generate a brand-new network genesis, set `CHAIN_ID` to the same Cosmos chain ID used when running `axond init --chain-id ...`

@@ -351,7 +351,7 @@ printf 'replace-with-a-strong-passphrase\n' > keyring.pass
 chmod 0600 keyring.pass
 ```
 
-也可以直接预下载最新 GitHub Release 二进制：
+推荐先预下载最新 GitHub Release 二进制：
 
 ```bash
 curl -fsSLo axond https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64
@@ -370,9 +370,10 @@ cd /opt/axon-node
 ```bash
 cd /opt/axon-node
 KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init
-# 向输出的账户地址转入资金
-KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
 KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh start
+# 向输出的账户地址转入资金
+# 等本地 RPC 启动后，在另一个终端执行
+KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
 ```
 
 Docker 执行：
@@ -407,12 +408,13 @@ docker run --rm -it \
   -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps coreutils && KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init'
 ```
 
-`./start_validator_node.sh create-validator` 和 `./start_validator_node.sh start` 也使用同样的 Docker 包装方式，只有 `create-validator` 这一步需要传入 `COMETBFT_RPC`。
+先使用同样的 Docker 包装方式运行 `./start_validator_node.sh start`，再在另一个终端执行 `./start_validator_node.sh create-validator`。只有 `create-validator` 这一步需要传入 `COMETBFT_RPC`；如果使用 `http://127.0.0.1:26657`，本地验证者 RPC 必须已经启动。
 
 运行特性：
 
 - 两个脚本都以脚本自身目录为基准解析 `axond`、`genesis.json`、`bootstrap_peers.txt` 和 `data/`
-- 如果 `./axond` 不存在，脚本会通过 GitHub Releases 的 `latest/download` 资产地址自动获取最新二进制，并在使用前校验配套的 SHA-256 摘要文件
+- 对主网或生产节点，建议首次运行前先从最新 GitHub Release 预下载 `./axond` 并校验 SHA-256
+- 如果 `./axond` 不存在，脚本会退回到 GitHub Releases 的 `latest/download` 资产地址自动获取最新二进制，并在使用前校验配套的 SHA-256 摘要文件
 - 当前发布的 Axon 主网参数为 `CHAIN_ID=axon_8210-1`、`EVM_CHAIN_ID=8210`
 - 对于当前发布的主网文件，`CHAIN_ID` 保持默认的 `axon_8210-1`，`EVM_CHAIN_ID` 保持默认的 `8210` 即可
 - 如果是你自己生成一条全新网络的创世块，`CHAIN_ID` 必须与执行 `axond init --chain-id ...` 时使用的 Cosmos Chain ID 完全一致
@@ -422,7 +424,7 @@ docker run --rm -it \
 - `./start_validator_node.sh init` 会创建或导入验证者账户；如果生成的是新账户，只会在标准输出中打印一次助记词，同时写入 `data/validator.address`、`data/validator.valoper`、`data/validator.consensus_pubkey.json` 和 `data/peer_info.txt`
 - 验证者脚本默认使用 `KEYRING_BACKEND=file`；执行验证者命令前需要设置 `KEYRING_PASSWORD_FILE`
 - 如需导入已有验证者账户，可设置 `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt`
-- `./start_validator_node.sh create-validator` 需要账户已充值、已设置 `KEYRING_PASSWORD_FILE`，并提供可访问的本机或自托管 `COMETBFT_RPC`，例如 `http://127.0.0.1:26657`
+- `./start_validator_node.sh create-validator` 需要账户已充值、已设置 `KEYRING_PASSWORD_FILE`，并提供可访问的本机或自托管 `COMETBFT_RPC`，例如 `http://127.0.0.1:26657`；如果使用本地 validator RPC 示例，必须先在另一个终端运行 `./start_validator_node.sh start`
 - `./start_validator_node.sh start` 只负责启动本地验证者节点进程
 - `packaging/package_axond.sh` 生成的 release 包会直接包含 `axond`、两个启动脚本、`genesis.json` 和 `bootstrap_peers.txt`
 - 节点默认服务端口统一为：`P2P 26656`、`CometBFT RPC 26657`、`JSON-RPC 8545`、`JSON-RPC WS 8546`、`REST API 1317`、`gRPC 9090`

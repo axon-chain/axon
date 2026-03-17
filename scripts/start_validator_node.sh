@@ -308,36 +308,79 @@ has_validator_key() {
     run_with_keyring_password 1 "$BINARY" keys show "$KEY_NAME" --keyring-backend "$KEYRING_BACKEND" --home "$HOME_DIR" >/dev/null 2>&1
 }
 
+mnemonic_from_file() {
+    python3 - "$1" <<'PYEOF'
+from pathlib import Path
+import sys
+
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+words = text.split()
+if not words:
+    raise SystemExit(1)
+print(" ".join(words))
+PYEOF
+}
+
+recover_validator_key_from_file() {
+    local mnemonic_file="$1"
+    local mnemonic=""
+
+    mnemonic="$(mnemonic_from_file "$mnemonic_file")"
+
+    if [ "$KEYRING_BACKEND" = "file" ]; then
+        require_keyring_password_file
+
+        local password=""
+        password="$(tr -d '\r\n' < "$KEYRING_PASSWORD_FILE")"
+        [ -n "$password" ] || die "keyring password file is empty: $KEYRING_PASSWORD_FILE"
+
+        printf '%s\n%s\n%s\n' "$mnemonic" "$password" "$password" | \
+            "$BINARY" keys add "$KEY_NAME" \
+                --recover \
+                --keyring-backend "$KEYRING_BACKEND" \
+                --home "$HOME_DIR" \
+                --output json
+        return 0
+    fi
+
+    printf '%s\n' "$mnemonic" | \
+        "$BINARY" keys add "$KEY_NAME" \
+            --recover \
+            --keyring-backend "$KEYRING_BACKEND" \
+            --home "$HOME_DIR" \
+            --output json
+}
+
 ensure_validator_key() {
     if has_validator_key; then
         return 0
     fi
 
     log "Creating validator account"
-    local mnemonic_file=""
     local payload=""
-    local generated_mnemonic=0
-    local tmp_seed_phrase=""
+    local generated_mnemonic=""
 
     if [ -n "$MNEMONIC_SOURCE_FILE" ]; then
-        mnemonic_file="$MNEMONIC_SOURCE_FILE"
-        require_file "$mnemonic_file"
+        require_file "$MNEMONIC_SOURCE_FILE"
+        payload="$(recover_validator_key_from_file "$MNEMONIC_SOURCE_FILE")"
     else
-        tmp_seed_phrase="$(mktemp "$DATA_DIR/account-seed.XXXXXX")"
-        "$BINARY" keys mnemonic >"$tmp_seed_phrase"
-        mnemonic_file="$tmp_seed_phrase"
-        generated_mnemonic=1
-    fi
-
-    payload="$(
-        run_with_keyring_password 2 \
+        payload="$(
+            run_with_keyring_password 2 \
             "$BINARY" keys add "$KEY_NAME" \
-            --recover \
-            --source "$mnemonic_file" \
             --keyring-backend "$KEYRING_BACKEND" \
             --home "$HOME_DIR" \
             --output json
-    )"
+        )"
+        generated_mnemonic="$(
+            python3 - "$payload" <<'PYEOF'
+import json
+import sys
+
+payload = json.loads(sys.argv[1])
+print(payload.get("mnemonic", ""))
+PYEOF
+        )"
+    fi
 
     python3 - "$ADDRESS_FILE" "$payload" <<'PYEOF'
 from pathlib import Path
@@ -349,12 +392,11 @@ payload = json.loads(sys.argv[2])
 address_path.write_text(payload["address"] + "\n", encoding="utf-8")
 PYEOF
 
-    if [ "$generated_mnemonic" -eq 1 ]; then
+    if [ -n "$generated_mnemonic" ]; then
         echo
         echo "New validator mnemonic (store offline now; it will not be written to disk again):"
-        cat "$tmp_seed_phrase"
+        printf '%s\n' "$generated_mnemonic"
         echo
-        rm -f "$tmp_seed_phrase"
     fi
 }
 
@@ -443,9 +485,9 @@ print_init_summary() {
     echo
     echo "Next steps:"
     echo "  1. Store the mnemonic offline if a new account was generated."
-    echo "  2. Fund the account address shown above."
-    echo "  3. Run: COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator"
-    echo "  4. Run: ./start_validator_node.sh start"
+    echo "  2. Start the validator node in one terminal: ./start_validator_node.sh start"
+    echo "  3. Fund the account address shown above."
+    echo "  4. In another terminal, run: COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator"
     echo
 }
 
@@ -561,9 +603,9 @@ Runtime data:
 Typical flow:
   1. ./start_validator_node.sh init
   2. Store the printed mnemonic offline (only when a new account is generated)
-  3. Fund the generated account address
-  4. COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
-  5. ./start_validator_node.sh start
+  3. Start the validator node in one terminal: ./start_validator_node.sh start
+  4. Fund the generated account address
+  5. In another terminal: COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
 
 Optional:
   - set KEYRING_PASSWORD_FILE=/path/to/passphrase when using the default file keyring backend

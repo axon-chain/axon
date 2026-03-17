@@ -345,7 +345,7 @@ printf 'replace-with-a-strong-passphrase\n' > keyring.pass
 chmod 0600 keyring.pass
 ```
 
-Optional pre-download from the latest GitHub Release:
+Recommended pre-download from the latest GitHub Release:
 
 ```bash
 curl -fsSLo axond https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64
@@ -364,9 +364,10 @@ cd /opt/axon-node
 ```bash
 cd /opt/axon-node
 KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init
-# fund the printed account address
-KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
 KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh start
+# fund the printed account address
+# run this from another terminal after the local RPC is up
+KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass COMETBFT_RPC=http://127.0.0.1:26657 ./start_validator_node.sh create-validator
 ```
 
 Docker execution:
@@ -401,12 +402,13 @@ docker run --rm -it \
   -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps coreutils && KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init'
 ```
 
-Use the same Docker wrapper for `./start_validator_node.sh create-validator` and `./start_validator_node.sh start`. Only the `create-validator` step needs `COMETBFT_RPC`.
+Use the same Docker wrapper for `./start_validator_node.sh start` and then run `./start_validator_node.sh create-validator` from another terminal. Only the `create-validator` step needs `COMETBFT_RPC`, and the local validator RPC must already be running if you use `http://127.0.0.1:26657`.
 
 Runtime behavior:
 
 - each script resolves `axond`, `genesis.json`, `bootstrap_peers.txt`, and `data/` relative to its own directory
-- if `./axond` is missing, the script downloads the latest binary from the GitHub Releases `latest/download` asset URL and verifies its SHA-256 sidecar file before use
+- for mainnet or production nodes, pre-download `./axond` from the latest GitHub Release and verify its SHA-256 before first run
+- if `./axond` is missing, the script falls back to downloading the latest binary from the GitHub Releases `latest/download` asset URL and verifies its SHA-256 sidecar file before use
 - the published Axon mainnet parameters are `CHAIN_ID=axon_8210-1` and `EVM_CHAIN_ID=8210`
 - for the published mainnet files, leave `CHAIN_ID` at the default `axon_8210-1` and `EVM_CHAIN_ID` at the default `8210`
 - if you generate a brand-new network genesis, set `CHAIN_ID` to the same Cosmos chain ID used when running `axond init --chain-id ...`
@@ -416,7 +418,7 @@ Runtime behavior:
 - `./start_validator_node.sh init` creates or imports the validator account, prints a newly generated mnemonic once to stdout, and writes `data/validator.address`, `data/validator.valoper`, `data/validator.consensus_pubkey.json`, and `data/peer_info.txt`
 - the default validator flow uses `KEYRING_BACKEND=file`; set `KEYRING_PASSWORD_FILE` to a local passphrase file before running validator commands
 - set `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt` when importing an existing validator account instead of generating a new one
-- `./start_validator_node.sh create-validator` requires a funded account, `KEYRING_PASSWORD_FILE`, and a reachable self-hosted `COMETBFT_RPC` endpoint such as `http://127.0.0.1:26657`
+- `./start_validator_node.sh create-validator` requires a funded account, `KEYRING_PASSWORD_FILE`, and a reachable self-hosted `COMETBFT_RPC` endpoint such as `http://127.0.0.1:26657`; if you use the local validator RPC example, `./start_validator_node.sh start` must already be running in another terminal
 - `./start_validator_node.sh start` only starts the local validator node process
 - the release bundle produced by `packaging/package_axond.sh` already contains `axond`, both scripts, `genesis.json`, and `bootstrap_peers.txt`
 - the default node service port set is `P2P 26656`, `CometBFT RPC 26657`, `JSON-RPC 8545`, `JSON-RPC WS 8546`, `REST API 1317`, `gRPC 9090`

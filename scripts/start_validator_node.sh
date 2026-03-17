@@ -17,7 +17,7 @@ CONSENSUS_PUBKEY_FILE="$DATA_DIR/validator.consensus_pubkey.json"
 CHAIN_ID="${CHAIN_ID:-axon_8210-1}"
 DENOM="${DENOM:-aaxon}"
 MIN_GAS_PRICES="${MIN_GAS_PRICES:-0${DENOM}}"
-GAS_PRICES="${GAS_PRICES:-0${DENOM}}"
+GAS_PRICES="${GAS_PRICES:-1000000000${DENOM}}"
 VALIDATOR_STAKE="${VALIDATOR_STAKE:-100000000000000000000${DENOM}}"
 P2P_EXTERNAL_ADDRESS="${P2P_EXTERNAL_ADDRESS:-}"
 P2P_PORT="${P2P_PORT:-26656}"
@@ -610,6 +610,7 @@ Typical flow:
 Optional:
   - set KEYRING_PASSWORD_FILE=/path/to/passphrase when using the default file keyring backend
   - set MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt to import an existing validator account
+  - override GAS_PRICES when the chain's Cosmos tx fee floor changes; the mainnet default is 1000000000aaxon
   - set P2P_EXTERNAL_ADDRESS=host:26656 only on publicly reachable nodes
 EOF
 }

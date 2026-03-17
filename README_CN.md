@@ -424,6 +424,7 @@ docker run --rm -it \
 - `./start_validator_node.sh init` 会创建或导入验证者账户；如果生成的是新账户，只会在标准输出中打印一次助记词，同时写入 `data/validator.address`、`data/validator.valoper`、`data/validator.consensus_pubkey.json` 和 `data/peer_info.txt`
 - 验证者脚本默认使用 `KEYRING_BACKEND=file`；执行验证者命令前需要设置 `KEYRING_PASSWORD_FILE`
 - 如需导入已有验证者账户，可设置 `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt`
+- 当前公开主网验证者流程会将 Cosmos 质押交易的 `GAS_PRICES` 默认设为 `1000000000aaxon`，用于 `create-validator` 等交易；如果后续链上手续费门槛变化，请显式覆盖 `GAS_PRICES`
 - `./start_validator_node.sh create-validator` 需要账户已充值、已设置 `KEYRING_PASSWORD_FILE`，并提供可访问的本机或自托管 `COMETBFT_RPC`，例如 `http://127.0.0.1:26657`；如果使用本地 validator RPC 示例，必须先在另一个终端运行 `./start_validator_node.sh start`
 - `./start_validator_node.sh start` 只负责启动本地验证者节点进程
 - `packaging/package_axond.sh` 生成的 release 包会直接包含 `axond`、两个启动脚本、`genesis.json` 和 `bootstrap_peers.txt`

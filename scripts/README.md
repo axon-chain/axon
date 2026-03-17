@@ -23,6 +23,7 @@ Validator-specific behavior:
 - the default validator keyring backend is `file`; set `KEYRING_PASSWORD_FILE=/path/to/passphrase` before running validator commands
 - set `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt` when importing an existing validator account
 - `./start_validator_node.sh init` initializes `./data/node`, creates or imports the validator account, prints a newly generated mnemonic once to stdout, and writes `./data/validator.address`, `./data/validator.valoper`, `./data/validator.consensus_pubkey.json`, and `./data/peer_info.txt`
+- the public mainnet validator script defaults `GAS_PRICES` to `1000000000aaxon` for Cosmos staking transactions; override it explicitly if the chain fee floor changes
 - `./start_validator_node.sh start` starts the local validator node process
 - `./start_validator_node.sh create-validator` submits the on-chain validator registration with a funded account, `KEYRING_PASSWORD_FILE`, and a reachable self-hosted `COMETBFT_RPC`, for example `http://127.0.0.1:26657`; when using the local RPC example, start the validator node first and run `create-validator` from another terminal
 

@@ -418,6 +418,7 @@ Runtime behavior:
 - `./start_validator_node.sh init` creates or imports the validator account, prints a newly generated mnemonic once to stdout, and writes `data/validator.address`, `data/validator.valoper`, `data/validator.consensus_pubkey.json`, and `data/peer_info.txt`
 - the default validator flow uses `KEYRING_BACKEND=file`; set `KEYRING_PASSWORD_FILE` to a local passphrase file before running validator commands
 - set `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt` when importing an existing validator account instead of generating a new one
+- the public mainnet validator flow defaults `GAS_PRICES` to `1000000000aaxon` for Cosmos staking transactions such as `create-validator`; override `GAS_PRICES` explicitly if the chain fee floor changes later
 - `./start_validator_node.sh create-validator` requires a funded account, `KEYRING_PASSWORD_FILE`, and a reachable self-hosted `COMETBFT_RPC` endpoint such as `http://127.0.0.1:26657`; if you use the local validator RPC example, `./start_validator_node.sh start` must already be running in another terminal
 - `./start_validator_node.sh start` only starts the local validator node process
 - the release bundle produced by `packaging/package_axond.sh` already contains `axond`, both scripts, `genesis.json`, and `bootstrap_peers.txt`

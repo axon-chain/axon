@@ -211,7 +211,7 @@ func (p Precompile) register(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 		return nil, fmt.Errorf("must send AXON as msg.value for staking")
 	}
 
-	caller := resolveRegisterSender(evm, contract)
+	caller := resolveMutationSender(contract, evm)
 	stakeAmount := sdk.NewCoin("aaxon", sdkmath.NewIntFromBigInt(msgValue.ToBig()))
 
 	// Funds already transferred from sender to precompile address by EVM.
@@ -237,7 +237,7 @@ func (p Precompile) addStake(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract
 		return nil, fmt.Errorf("must send AXON as msg.value for addStake")
 	}
 
-	caller := p.resolveAgentSender(ctx, evm, contract)
+	caller := resolveMutationSender(contract, evm)
 	stakeAmount := sdk.NewCoin("aaxon", sdkmath.NewIntFromBigInt(msgValue.ToBig()))
 	precompileAddr := sdk.AccAddress(address.Bytes())
 
@@ -257,7 +257,7 @@ func (p Precompile) updateAgent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 	capabilities, _ := args[0].(string)
 	model, _ := args[1].(string)
 
-	caller := p.resolveAgentSender(ctx, evm, contract)
+	caller := resolveMutationSender(contract, evm)
 
 	msgServer := keeper.NewMsgServerImpl(p.keeper)
 	_, err := msgServer.UpdateAgent(ctx, &types.MsgUpdateAgent{
@@ -272,7 +272,7 @@ func (p Precompile) updateAgent(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (p Precompile) heartbeat(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method) ([]byte, error) {
-	caller := p.resolveAgentSender(ctx, evm, contract)
+	caller := resolveMutationSender(contract, evm)
 
 	msgServer := keeper.NewMsgServerImpl(p.keeper)
 	_, err := msgServer.Heartbeat(ctx, &types.MsgHeartbeat{
@@ -285,7 +285,7 @@ func (p Precompile) heartbeat(ctx sdk.Context, evm *vm.EVM, contract *vm.Contrac
 }
 
 func (p Precompile) deregister(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method) ([]byte, error) {
-	caller := p.resolveAgentSender(ctx, evm, contract)
+	caller := resolveMutationSender(contract, evm)
 
 	msgServer := keeper.NewMsgServerImpl(p.keeper)
 	_, err := msgServer.Deregister(ctx, &types.MsgDeregister{
@@ -306,7 +306,7 @@ func (p Precompile) reduceStake(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 		return nil, fmt.Errorf("amount: expected *big.Int, got %T", args[0])
 	}
 
-	caller := p.resolveAgentSender(ctx, evm, contract)
+	caller := resolveMutationSender(contract, evm)
 	amount := sdk.NewCoin("aaxon", sdkmath.NewIntFromBigInt(amountBig))
 
 	if err := p.keeper.ReduceStakeFromAgent(ctx, caller.String(), amount); err != nil {
@@ -317,7 +317,7 @@ func (p Precompile) reduceStake(ctx sdk.Context, evm *vm.EVM, contract *vm.Contr
 }
 
 func (p Precompile) claimReducedStake(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method) ([]byte, error) {
-	caller := p.resolveAgentSender(ctx, evm, contract)
+	caller := resolveMutationSender(contract, evm)
 	if err := p.keeper.ClaimReducedStake(ctx, caller.String()); err != nil {
 		return nil, err
 	}
@@ -343,31 +343,20 @@ func (p Precompile) getStakeInfo(ctx sdk.Context, _ *vm.EVM, _ *vm.Contract, met
 	return method.Outputs.Pack(totalStake.BigInt(), pendingReduce.BigInt(), uint64(reduceUnlockHeight))
 }
 
-// resolveRegisterSender binds new registration to tx origin.
-// This avoids intermediary contracts becoming the newly-registered account.
-func resolveRegisterSender(evm *vm.EVM, contract *vm.Contract) sdk.AccAddress {
+// resolveMutationSender binds registry mutations to the immediate EVM caller.
+// This keeps the identity owner and the msg.value payer aligned and matches the
+// semantics used by Cosmos EVM's built-in stateful precompiles.
+func resolveMutationSender(contract *vm.Contract, evm *vm.EVM) sdk.AccAddress {
+	if contract != nil {
+		caller := contract.Caller()
+		if caller != (common.Address{}) {
+			return sdk.AccAddress(caller.Bytes())
+		}
+	}
 	if evm != nil && evm.Origin != (common.Address{}) {
 		return sdk.AccAddress(evm.Origin.Bytes())
 	}
-	return sdk.AccAddress(contract.Caller().Bytes())
-}
-
-// resolveAgentSender keeps compatibility for historical caller-based registrations:
-// prefer tx origin if registered; otherwise fall back to caller if registered.
-func (p Precompile) resolveAgentSender(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract) sdk.AccAddress {
-	caller := sdk.AccAddress(contract.Caller().Bytes())
-	if evm == nil || evm.Origin == (common.Address{}) {
-		return caller
-	}
-
-	origin := sdk.AccAddress(evm.Origin.Bytes())
-	if p.keeper.IsAgent(ctx, origin.String()) {
-		return origin
-	}
-	if p.keeper.IsAgent(ctx, caller.String()) {
-		return caller
-	}
-	return origin
+	return sdk.AccAddress{}
 }
 
 const abiJSON = `[

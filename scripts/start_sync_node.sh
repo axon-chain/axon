@@ -149,6 +149,59 @@ stop_existing_node() {
     rm -f "$PID_FILE"
 }
 
+node_pid() {
+    if [ ! -f "$PID_FILE" ]; then
+        return 1
+    fi
+
+    local pid=""
+    pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+    [ -n "$pid" ] || return 1
+    printf '%s\n' "$pid"
+}
+
+node_process_running() {
+    local pid=""
+    pid="$(node_pid)" || return 1
+    kill -0 "$pid" >/dev/null 2>&1
+}
+
+command_status() {
+    local process_status="stopped"
+    local pid_display="not found"
+    local home_status="missing"
+    local log_status="missing"
+    local pid_value=""
+
+    if [ -f "$HOME_DIR/config/config.toml" ]; then
+        home_status="$HOME_DIR"
+    fi
+
+    if [ -f "$LOG_FILE" ]; then
+        log_status="$LOG_FILE"
+    fi
+
+    if node_process_running; then
+        process_status="running"
+        pid_display="$(node_pid)"
+    elif pid_value="$(node_pid 2>/dev/null)"; then
+        process_status="stale pid"
+        pid_display="$pid_value"
+    fi
+
+    echo "Sync node status"
+    echo "  Process: $process_status"
+    echo "  PID:     $pid_display"
+    echo "  Home:    $home_status"
+    echo "  Log:     $log_status"
+    echo "  Peer:    ${PEER_INFO_FILE}"
+}
+
+command_stop() {
+    stop_existing_node
+    echo "Sync node stop completed."
+}
+
 bootstrap_peers_value() {
     python3 - "$BOOTSTRAP_PEERS_FILE" <<'PYEOF'
 from pathlib import Path
@@ -263,7 +316,13 @@ start_node() {
 
 usage() {
     cat <<'EOF'
-Start a sync node from the current directory.
+Manage a sync node from the current directory.
+
+Commands:
+  start   initialize local state if needed and start the sync node
+  status  show process, PID, home, and log paths
+  stop    stop the locally started sync node process
+  help    show this help message
 
 Expected files in the script directory:
   - axond (optional; downloaded automatically when missing)
@@ -280,37 +339,55 @@ Optional:
 EOF
 }
 
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    usage
-    exit 0
-fi
+command_start() {
+    need_cmd python3
+    ensure_binary
+    require_file "$GENESIS_FILE"
+    require_file "$BOOTSTRAP_PEERS_FILE"
 
-need_cmd python3
-ensure_binary
-require_file "$GENESIS_FILE"
-require_file "$BOOTSTRAP_PEERS_FILE"
+    mkdir -p "$DATA_DIR"
+    if [ ! -f "$HOME_DIR/config/config.toml" ]; then
+        log "Initializing node home: $HOME_DIR"
+        "$BINARY" init "$MONIKER" --chain-id "$CHAIN_ID" --home "$HOME_DIR" >/dev/null
+    fi
 
-mkdir -p "$DATA_DIR"
-if [ ! -f "$HOME_DIR/config/config.toml" ]; then
-    log "Initializing node home: $HOME_DIR"
-    "$BINARY" init "$MONIKER" --chain-id "$CHAIN_ID" --home "$HOME_DIR" >/dev/null
-fi
+    log "Installing genesis"
+    cp "$GENESIS_FILE" "$HOME_DIR/config/genesis.json"
+    configure_runtime_files "$(bootstrap_peers_value)"
+    write_peer_info
 
-log "Installing genesis"
-cp "$GENESIS_FILE" "$HOME_DIR/config/genesis.json"
-configure_runtime_files "$(bootstrap_peers_value)"
-write_peer_info
+    echo
+    echo "Sync node is configured."
+    echo "  Home:      $HOME_DIR"
+    echo "  Chain ID:  $CHAIN_ID"
+    echo "  Peer:      $(cat "$PEER_INFO_FILE")"
+    echo "  Upstream:  $(bootstrap_peers_value)"
+    echo
 
-echo
-echo "Sync node is configured."
-echo "  Home:      $HOME_DIR"
-echo "  Chain ID:  $CHAIN_ID"
-echo "  Peer:      $(cat "$PEER_INFO_FILE")"
-echo "  Upstream:  $(bootstrap_peers_value)"
-echo
+    stop_existing_node
+    mkdir -p "$(dirname "$LOG_FILE")"
+    echo "$$" >"$PID_FILE"
+    exec > >(tee -a "$LOG_FILE") 2>&1
+    start_node
+}
 
-stop_existing_node
-mkdir -p "$(dirname "$LOG_FILE")"
-echo "$$" >"$PID_FILE"
-exec > >(tee -a "$LOG_FILE") 2>&1
-start_node
+COMMAND="${1:-start}"
+
+case "$COMMAND" in
+    start)
+        command_start
+        ;;
+    status)
+        command_status
+        ;;
+    stop)
+        command_stop
+        ;;
+    help|-h|--help)
+        usage
+        ;;
+    *)
+        usage
+        exit 1
+        ;;
+esac

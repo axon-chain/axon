@@ -198,6 +198,23 @@ stop_existing_node() {
     rm -f "$PID_FILE"
 }
 
+node_pid() {
+    if [ ! -f "$PID_FILE" ]; then
+        return 1
+    fi
+
+    local pid=""
+    pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+    [ -n "$pid" ] || return 1
+    printf '%s\n' "$pid"
+}
+
+node_process_running() {
+    local pid=""
+    pid="$(node_pid)" || return 1
+    kill -0 "$pid" >/dev/null 2>&1
+}
+
 bootstrap_peers_value() {
     python3 - "$BOOTSTRAP_PEERS_FILE" <<'PYEOF'
 from pathlib import Path
@@ -533,6 +550,49 @@ command_create_validator() {
     print_create_validator_summary
 }
 
+command_status() {
+    local process_status="stopped"
+    local pid_display="not found"
+    local home_status="missing"
+    local log_status="missing"
+    local validator_status="not initialized"
+    local pid_value=""
+
+    if [ -f "$HOME_DIR/config/config.toml" ]; then
+        home_status="$HOME_DIR"
+    fi
+
+    if [ -f "$LOG_FILE" ]; then
+        log_status="$LOG_FILE"
+    fi
+
+    if [ -f "$VALOPER_FILE" ]; then
+        validator_status="$(cat "$VALOPER_FILE")"
+    fi
+
+    if node_process_running; then
+        process_status="running"
+        pid_display="$(node_pid)"
+    elif pid_value="$(node_pid 2>/dev/null)"; then
+        process_status="stale pid"
+        pid_display="$pid_value"
+    fi
+
+    echo "Validator node status"
+    echo "  Process:   $process_status"
+    echo "  PID:       $pid_display"
+    echo "  Home:      $home_status"
+    echo "  Log:       $log_status"
+    echo "  Account:   ${ADDRESS_FILE}"
+    echo "  Validator: $validator_status"
+    echo "  Peer:      ${PEER_INFO_FILE}"
+}
+
+command_stop() {
+    stop_existing_node
+    echo "Validator node stop completed."
+}
+
 start_node() {
     local args=(
         start
@@ -585,6 +645,8 @@ Commands:
   init              initialize validator home, create account, and write local metadata
   create-validator  submit the on-chain create-validator transaction
   start             start the validator node process
+  status            show process, PID, home, and log paths
+  stop              stop the locally started validator node process
   help              show this help message
 
 Expected files in the script directory:
@@ -626,6 +688,12 @@ case "$COMMAND" in
         ;;
     start)
         command_start
+        ;;
+    status)
+        command_status
+        ;;
+    stop)
+        command_stop
         ;;
     help|-h|--help)
         usage

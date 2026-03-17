@@ -209,6 +209,7 @@ zk-SNARK (Groth16) + Poseidon hash powered privacy capabilities:
 | `0x0...0813` | IZKVerifier | General Groth16 ZK verifier |
 
 Solidity interfaces are in `contracts/interfaces/`.
+State-changing calls on `IAgentRegistry` are attributed to the immediate EVM caller (`msg.sender` / `contract.Caller()`), not `tx.origin`.
 
 ## Code Layout
 
@@ -421,6 +422,7 @@ Runtime behavior:
 - the public mainnet validator flow defaults `GAS_PRICES` to `1000000000aaxon` for Cosmos staking transactions such as `create-validator`; override `GAS_PRICES` explicitly if the chain fee floor changes later
 - `./start_validator_node.sh create-validator` requires a funded account, `KEYRING_PASSWORD_FILE`, and a reachable self-hosted `COMETBFT_RPC` endpoint such as `http://127.0.0.1:26657`; if you use the local validator RPC example, `./start_validator_node.sh start` must already be running in another terminal
 - `./start_validator_node.sh start` only starts the local validator node process
+- `./start_validator_node.sh status` and `./start_sync_node.sh status` report state from the official current-directory runtime paths under `data/`, so operators should prefer these commands over any older external status helper scripts
 - the release bundle produced by `packaging/package_axond.sh` already contains `axond`, both scripts, `genesis.json`, and `bootstrap_peers.txt`
 - the default node service port set is `P2P 26656`, `CometBFT RPC 26657`, `JSON-RPC 8545`, `JSON-RPC WS 8546`, `REST API 1317`, `gRPC 9090`
 

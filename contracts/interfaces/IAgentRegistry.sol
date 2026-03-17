@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 /// @title IAgentRegistry — Axon Agent Identity (Precompile 0x..0801)
 /// @notice Chain-level Agent identity management. Calls execute at native speed.
+/// @dev State-changing methods are attributed to the immediate EVM caller (`msg.sender`), not `tx.origin`.
 interface IAgentRegistry {
     /// @notice Check if an address is a registered Agent
     function isAgent(address account) external view returns (bool);

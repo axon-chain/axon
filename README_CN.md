@@ -215,6 +215,7 @@ MiningPower = sqrt(Stake) × (1 + 1.5 × ln(1 + Reputation) / ln(101))
 | `0x0...0813` | IZKVerifier | 通用 Groth16 ZK 验证器 |
 
 Solidity 接口定义位于 `contracts/interfaces/`。
+`IAgentRegistry` 的状态变更调用归属到当前 EVM 直接调用者（`msg.sender` / `contract.Caller()`），不是 `tx.origin`。
 
 ## 代码实现结构
 
@@ -427,6 +428,7 @@ docker run --rm -it \
 - 当前公开主网验证者流程会将 Cosmos 质押交易的 `GAS_PRICES` 默认设为 `1000000000aaxon`，用于 `create-validator` 等交易；如果后续链上手续费门槛变化，请显式覆盖 `GAS_PRICES`
 - `./start_validator_node.sh create-validator` 需要账户已充值、已设置 `KEYRING_PASSWORD_FILE`，并提供可访问的本机或自托管 `COMETBFT_RPC`，例如 `http://127.0.0.1:26657`；如果使用本地 validator RPC 示例，必须先在另一个终端运行 `./start_validator_node.sh start`
 - `./start_validator_node.sh start` 只负责启动本地验证者节点进程
+- `./start_validator_node.sh status` 和 `./start_sync_node.sh status` 会基于当前目录下官方 `data/` 运行路径报告状态，运维时应优先使用这两个命令，而不是任何旧的外部状态辅助脚本
 - `packaging/package_axond.sh` 生成的 release 包会直接包含 `axond`、两个启动脚本、`genesis.json` 和 `bootstrap_peers.txt`
 - 节点默认服务端口统一为：`P2P 26656`、`CometBFT RPC 26657`、`JSON-RPC 8545`、`JSON-RPC WS 8546`、`REST API 1317`、`gRPC 9090`
 

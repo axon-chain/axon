@@ -7,11 +7,8 @@ import (
 	"io"
 	"os"
 
-	goruntime "runtime"
-
 	"github.com/spf13/cast"
 
-	"github.com/cosmos/cosmos-sdk/baseapp/txnrunner"
 	"github.com/ethereum/go-ethereum/common"
 	ethvm "github.com/ethereum/go-ethereum/core/vm"
 
@@ -226,11 +223,6 @@ func NewAxonApp(
 	interfaceRegistry := encodingConfig.InterfaceRegistry
 	txConfig := encodingConfig.TxConfig
 
-	baseAppOptions = append(
-		baseAppOptions,
-		baseapp.SetOptimisticExecution(),
-	)
-
 	bApp := baseapp.NewBaseApp(
 		AppName,
 		logger,
@@ -265,14 +257,6 @@ func NewAxonApp(
 	for _, k := range oKeys {
 		nonTransientKeys = append(nonTransientKeys, k)
 	}
-
-	bApp.SetBlockSTMTxRunner(txnrunner.NewSTMRunner(
-		encodingConfig.TxConfig.TxDecoder(),
-		nonTransientKeys,
-		min(goruntime.GOMAXPROCS(0), goruntime.NumCPU()),
-		true,
-		func(ms storetypes.MultiStore) string { return axonconfig.AxonDenom },
-	))
 
 	bApp.SetDisableBlockGasMeter(true)
 

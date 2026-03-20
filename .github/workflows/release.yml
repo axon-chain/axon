@@ -151,11 +151,12 @@ jobs:
           AMD64_DIR="${FINAL_DIR}/axond_${VERSION_PLAIN}_linux_amd64"
           ARM64_DIR="${FINAL_DIR}/axond_${VERSION_PLAIN}_linux_arm64"
 
-          [[ -x "${AMD64_DIR}/axond" ]] || { echo "missing amd64 axond binary" >&2; exit 1; }
-          [[ -x "${ARM64_DIR}/axond" ]] || { echo "missing arm64 axond binary" >&2; exit 1; }
+          [[ -f "${AMD64_DIR}/axond" ]] || { echo "missing amd64 axond binary" >&2; exit 1; }
+          [[ -f "${ARM64_DIR}/axond" ]] || { echo "missing arm64 axond binary" >&2; exit 1; }
 
           cp "${AMD64_DIR}/axond" "${FINAL_DIR}/axond_linux_amd64"
           cp "${ARM64_DIR}/axond" "${FINAL_DIR}/axond_linux_arm64"
+          chmod 0755 "${FINAL_DIR}/axond_linux_amd64" "${FINAL_DIR}/axond_linux_arm64"
 
           sha256sum "${FINAL_DIR}/axond_linux_amd64" | awk '{print $1}' > "${FINAL_DIR}/axond_linux_amd64.sha256"
           sha256sum "${FINAL_DIR}/axond_linux_arm64" | awk '{print $1}' > "${FINAL_DIR}/axond_linux_arm64.sha256"

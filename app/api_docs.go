@@ -36,7 +36,7 @@ var (
 var apiDocsTemplateFS embed.FS
 
 type apiDocsTemplateData struct {
-	DataJSON string
+	DataJSON template.JS
 }
 
 type apiDocsPayload struct {
@@ -201,7 +201,7 @@ func registerDocsSiteRoutes(router *mux.Router, spec []byte, generatedSection ap
 		}
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		if err := apiDocsPageTemplate.Execute(w, apiDocsTemplateData{DataJSON: string(payloadJSON)}); err != nil {
+		if err := apiDocsPageTemplate.Execute(w, apiDocsTemplateData{DataJSON: template.JS(string(payloadJSON))}); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 	}

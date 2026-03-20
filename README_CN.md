@@ -20,14 +20,37 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 |------|-----|
 | Cosmos Chain ID | `axon_8210-1` |
 | EVM Chain ID | `8210` |
-| EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656` |
 | Bootstrap Peer | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656` |
 | Genesis 文件 | `docs/mainnet/genesis.json` |
 | Bootstrap Peers 文件 | `docs/mainnet/bootstrap_peers.txt` |
 | 原生代币 | `AXON` |
 
-仓库当前公开的是对外 `EVM JSON-RPC` 接入点，以及给节点发现和同步使用的 P2P 引导节点。
+### 本地节点默认端口
+
+以下是当前代码里 validator 或 sync 节点默认监听的本地端口。
+
+| 服务 | 默认本地地址 | 说明 |
+|------|------|------|
+| P2P | `tcp://127.0.0.1:26656` | 节点互联 |
+| CometBFT RPC | `http://127.0.0.1:26657` | 底层链 RPC |
+| EVM JSON-RPC | `http://127.0.0.1:8545` | 钱包与合约 RPC |
+| EVM JSON-RPC WebSocket | `ws://127.0.0.1:8546` | 订阅通道 |
+| Cosmos REST API | `http://127.0.0.1:1317` | 标准 REST、Axon 路由与 `/axon/public/v1/` |
+| gRPC | `127.0.0.1:9090` | 类型化服务访问 |
+
+### 公共 API 入口
+
+以下是内部维护的公共域名与 HTTPS 入口。它们在功能上对应上面的本地节点服务，本质上仍然是节点能力对外暴露，不是另一套独立协议实现。
+
+| 服务 | 公共入口 | 对应本地能力 |
+|------|------|------|
+| 统一 API 入口 | `https://mainnet-api.axonchain.ai/` | 本地节点 REST/API 能力集合 |
+| 运行时 API 文档 | `https://mainnet-api.axonchain.ai/docs/` | 统一 API 文档站点 |
+| EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` | 本地 `8545` EVM JSON-RPC |
+| EVM JSON-RPC WebSocket | `https://mainnet-rpc-ws.axonchain.ai/` | 本地 `8546` EVM JSON-RPC WebSocket |
+
+运行时 API 文档地址：`https://mainnet-api.axonchain.ai/docs/`
 
 ## MetaMask
 

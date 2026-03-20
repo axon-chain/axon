@@ -62,7 +62,11 @@ func (am AgentAppModule) ValidateGenesis(cdc codec.JSONCodec, _ client.TxEncodin
 	return gs.Validate()
 }
 
-func (am AgentAppModule) RegisterGRPCGatewayRoutes(_ client.Context, _ *runtime.ServeMux) {}
+func (am AgentAppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux *runtime.ServeMux) {
+	if err := agenttypes.RegisterQueryHandlerClient(context.Background(), mux, agenttypes.NewQueryClient(clientCtx)); err != nil {
+		panic(err)
+	}
+}
 
 func (am AgentAppModule) RegisterServices(cfg module.Configurator) {
 	agenttypes.RegisterMsgServer(cfg.MsgServer(), agentkeeper.NewMsgServerImpl(am.keeper))

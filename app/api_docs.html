@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Axon API Docs</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f4f1e8;
+      --panel: #fffdf8;
+      --panel-strong: #f7f0df;
+      --line: #d7c8aa;
+      --line-strong: #bda57c;
+      --text: #1f1a14;
+      --muted: #645746;
+      --accent: #8a5a17;
+      --accent-strong: #5d3907;
+      --tag-get-bg: #e5f5ed;
+      --tag-get-text: #165c38;
+      --tag-post-bg: #efe5ff;
+      --tag-post-text: #4c2374;
+      --shadow: 0 18px 48px rgba(53, 38, 17, 0.08);
+      --radius: 18px;
+      --radius-sm: 12px;
+      --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+      --sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--sans);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(196, 155, 90, 0.18), transparent 28%),
+        radial-gradient(circle at top right, rgba(130, 84, 19, 0.12), transparent 24%),
+        linear-gradient(180deg, #fbf7ef 0%, var(--bg) 100%);
+      min-height: 100vh;
+    }
+
+    a {
+      color: var(--accent-strong);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .page {
+      width: min(1240px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 64px;
+    }
+
+    .hero,
+    .panel {
+      background: rgba(255, 253, 248, 0.92);
+      border: 1px solid rgba(189, 165, 124, 0.5);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      backdrop-filter: blur(8px);
+    }
+
+    .hero {
+      padding: 28px;
+      margin-bottom: 20px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--panel-strong);
+      border: 1px solid var(--line);
+      color: var(--accent-strong);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 0;
+      color: var(--text);
+    }
+
+    h1 {
+      margin-top: 16px;
+      font-size: clamp(28px, 4vw, 46px);
+      line-height: 1.05;
+    }
+
+    .hero p {
+      margin: 14px 0 0;
+      max-width: 960px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .hero-grid,
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .hero-grid {
+      margin-top: 22px;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    }
+
+    .hero-card,
+    .stat-card {
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+      border: 1px solid var(--line);
+    }
+
+    .hero-card strong,
+    .stat-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .hero-card code,
+    .mono {
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    .layout {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: 300px minmax(0, 1fr);
+      align-items: start;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 20px;
+      padding: 20px;
+    }
+
+    .sidebar h2 {
+      font-size: 18px;
+      margin-bottom: 14px;
+    }
+
+    .sidebar nav {
+      display: grid;
+      gap: 10px;
+    }
+
+    .sidebar a {
+      display: block;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      color: var(--text);
+      background: rgba(247, 240, 223, 0.65);
+    }
+
+    .sidebar a:hover {
+      border-color: var(--line);
+      background: #fffaf0;
+      text-decoration: none;
+    }
+
+    .content {
+      display: grid;
+      gap: 20px;
+    }
+
+    .panel {
+      padding: 22px;
+    }
+
+    .panel h2 {
+      font-size: 24px;
+      margin-bottom: 6px;
+    }
+
+    .panel > p {
+      margin: 0 0 18px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .grid {
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+
+    .key-value,
+    .service-card {
+      padding: 16px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    .key-value strong,
+    .service-card strong {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+
+    .service-card p,
+    .key-value p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.55;
+    }
+
+    .service-card .mono,
+    .key-value .mono {
+      display: inline-block;
+      margin-top: 4px;
+      word-break: break-all;
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 14px 16px;
+      text-align: left;
+      vertical-align: top;
+      border-bottom: 1px solid rgba(215, 200, 170, 0.7);
+    }
+
+    th {
+      background: rgba(247, 240, 223, 0.78);
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    .group-list {
+      display: grid;
+      gap: 18px;
+    }
+
+    .group-card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--panel);
+      overflow: hidden;
+    }
+
+    .group-card header {
+      padding: 18px 18px 10px;
+      background: linear-gradient(180deg, rgba(247, 240, 223, 0.85) 0%, rgba(255, 253, 248, 0.95) 100%);
+      border-bottom: 1px solid rgba(215, 200, 170, 0.7);
+    }
+
+    .group-card header h3 {
+      font-size: 20px;
+    }
+
+    .group-card header p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .endpoint-list {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+    }
+
+    .endpoint {
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: #fffefb;
+    }
+
+    .endpoint-top {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
+
+    .method {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 64px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-family: var(--mono);
+    }
+
+    .method.get {
+      background: var(--tag-get-bg);
+      color: var(--tag-get-text);
+    }
+
+    .method.post {
+      background: var(--tag-post-bg);
+      color: var(--tag-post-text);
+    }
+
+    .path {
+      font-family: var(--mono);
+      font-size: 14px;
+      word-break: break-word;
+    }
+
+    .endpoint p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: rgba(247, 240, 223, 0.7);
+      color: var(--accent-strong);
+      font-size: 12px;
+      line-height: 1;
+    }
+
+    .list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .footer {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 13px;
+      text-align: center;
+    }
+
+    @media (max-width: 980px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: static;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <section class="hero">
+      <span class="eyebrow">Axon Runtime Docs</span>
+      <h1>Axon API Docs</h1>
+      <p id="summary"></p>
+      <div class="hero-grid">
+        <div class="hero-card">
+          <strong>Docs URL</strong>
+          <a id="docs-url" class="mono" href="#"></a>
+        </div>
+        <div class="hero-card">
+          <strong>Public API Base</strong>
+          <a id="public-api-base" class="mono" href="#"></a>
+        </div>
+        <div class="hero-card">
+          <strong>Agent API Base</strong>
+          <a id="agent-api-base" class="mono" href="#"></a>
+        </div>
+        <div class="hero-card">
+          <strong>Generated</strong>
+          <span id="generated-at" class="mono"></span>
+        </div>
+      </div>
+    </section>
+
+    <div class="layout">
+      <aside class="panel sidebar">
+        <h2>Sections</h2>
+        <nav>
+          <a href="#entries">Public Entrypoints</a>
+          <a href="#local-ports">Local Node Ports</a>
+          <a href="#rules">API Rules</a>
+          <a href="#manual-api">Public Aggregation API</a>
+          <a href="#generated-api">Generated Agent API</a>
+        </nav>
+      </aside>
+
+      <main class="content">
+        <section id="entries" class="panel">
+          <h2>Public Entrypoints</h2>
+          <p>Public HTTPS endpoints are the externally maintained access layer for the same node capabilities.</p>
+          <div id="public-services" class="grid"></div>
+        </section>
+
+        <section id="local-ports" class="panel">
+          <h2>Local Node Ports</h2>
+          <p>These are the node's local services and ports when running the software directly.</p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Service</th>
+                  <th>Port</th>
+                  <th>Local Form</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody id="local-services"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section id="rules" class="panel">
+          <h2>API Rules</h2>
+          <p>Repository-owned public aggregation routes share response wrappers and pagination behavior.</p>
+          <div class="grid">
+            <div class="stat-card">
+              <strong>OpenAPI</strong>
+              <a id="openapi-url" class="mono" href="#"></a>
+            </div>
+            <div class="stat-card">
+              <strong>Swagger UI</strong>
+              <a id="swagger-url" class="mono" href="#"></a>
+            </div>
+            <div class="stat-card">
+              <strong>Docs Data</strong>
+              <a id="docs-data-url" class="mono" href="#"></a>
+            </div>
+          </div>
+          <div style="height:16px"></div>
+          <div class="grid">
+            <div>
+              <h3 style="margin-bottom:12px">Request / Response Rules</h3>
+              <div id="rules-list" class="list"></div>
+            </div>
+            <div>
+              <h3 style="margin-bottom:12px">Response Wrappers</h3>
+              <div id="wrappers-list" class="list"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="manual-api" class="panel">
+          <h2>Public Aggregation API</h2>
+          <p id="manual-description"></p>
+          <div id="manual-groups" class="group-list"></div>
+        </section>
+
+        <section id="generated-api" class="panel">
+          <h2 id="generated-title"></h2>
+          <p id="generated-description"></p>
+          <div id="generated-groups" class="group-list"></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="footer">
+      Runtime documentation is generated at startup and rendered from embedded assets.
+    </div>
+  </div>
+
+  <script>
+    const payload = JSON.parse({{ printf "%q" .DataJSON }});
+
+    function setLink(id, value) {
+      const node = document.getElementById(id);
+      node.textContent = value;
+      node.href = value;
+    }
+
+    function appendRule(containerId, items) {
+      const container = document.getElementById(containerId);
+      items.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "key-value";
+        const title = document.createElement("strong");
+        title.textContent = item.label;
+        const value = document.createElement("p");
+        value.className = "mono";
+        value.textContent = item.value;
+        card.appendChild(title);
+        card.appendChild(value);
+        container.appendChild(card);
+      });
+    }
+
+    function renderPublicServices(items) {
+      const container = document.getElementById("public-services");
+      items.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "service-card";
+
+        const title = document.createElement("strong");
+        title.textContent = item.name;
+        card.appendChild(title);
+
+        const link = document.createElement("a");
+        link.href = item.entry;
+        link.className = "mono";
+        link.textContent = item.entry;
+        card.appendChild(link);
+
+        const notes = document.createElement("p");
+        notes.textContent = item.notes;
+        card.appendChild(notes);
+
+        container.appendChild(card);
+      });
+    }
+
+    function renderLocalServices(items) {
+      const tbody = document.getElementById("local-services");
+      items.forEach((item) => {
+        const tr = document.createElement("tr");
+        [item.name, item.port, item.local_form, item.notes].forEach((value, index) => {
+          const td = document.createElement("td");
+          if (index === 2) {
+            const code = document.createElement("span");
+            code.className = "mono";
+            code.textContent = value;
+            td.appendChild(code);
+          } else {
+            td.textContent = value;
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderGroups(containerId, groups) {
+      const container = document.getElementById(containerId);
+      groups.forEach((group) => {
+        const card = document.createElement("section");
+        card.className = "group-card";
+
+        const header = document.createElement("header");
+        const title = document.createElement("h3");
+        title.textContent = group.name;
+        header.appendChild(title);
+        if (group.description) {
+          const desc = document.createElement("p");
+          desc.textContent = group.description;
+          header.appendChild(desc);
+        }
+        card.appendChild(header);
+
+        const endpointList = document.createElement("div");
+        endpointList.className = "endpoint-list";
+
+        group.endpoints.forEach((endpoint) => {
+          const item = document.createElement("article");
+          item.className = "endpoint";
+
+          const top = document.createElement("div");
+          top.className = "endpoint-top";
+
+          const method = document.createElement("span");
+          method.className = "method " + endpoint.method.toLowerCase();
+          method.textContent = endpoint.method;
+          top.appendChild(method);
+
+          const path = document.createElement("code");
+          path.className = "path";
+          path.textContent = endpoint.path;
+          top.appendChild(path);
+
+          item.appendChild(top);
+
+          const summary = document.createElement("p");
+          summary.textContent = endpoint.summary;
+          item.appendChild(summary);
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
+          if (Array.isArray(endpoint.query)) {
+            endpoint.query.forEach((value) => {
+              const chip = document.createElement("span");
+              chip.className = "chip";
+              chip.textContent = "query: " + value;
+              meta.appendChild(chip);
+            });
+          }
+
+          if (Array.isArray(endpoint.notes)) {
+            endpoint.notes.forEach((value) => {
+              const chip = document.createElement("span");
+              chip.className = "chip";
+              chip.textContent = value;
+              meta.appendChild(chip);
+            });
+          }
+
+          if (Array.isArray(endpoint.response)) {
+            endpoint.response.forEach((value) => {
+              const chip = document.createElement("span");
+              chip.className = "chip";
+              chip.textContent = "response: " + value;
+              meta.appendChild(chip);
+            });
+          }
+
+          if (meta.childNodes.length > 0) {
+            item.appendChild(meta);
+          }
+
+          endpointList.appendChild(item);
+        });
+
+        card.appendChild(endpointList);
+        container.appendChild(card);
+      });
+    }
+
+    document.getElementById("summary").textContent = payload.summary;
+    document.getElementById("generated-at").textContent = payload.generated_at;
+    document.getElementById("manual-description").textContent = "Base path: " + payload.public_api.base_path;
+    document.getElementById("generated-title").textContent = payload.generated_api.title;
+    document.getElementById("generated-description").textContent = "Generated routes are discovered from protobuf HTTP annotations at startup. Version: " + payload.generated_api.version;
+
+    setLink("docs-url", payload.runtime.docs_url);
+    setLink("public-api-base", payload.runtime.public_api_base);
+    setLink("agent-api-base", payload.runtime.agent_api_base);
+    setLink("openapi-url", payload.runtime.openapi_spec_url);
+    setLink("swagger-url", payload.runtime.swagger_ui_url);
+    setLink("docs-data-url", payload.runtime.docs_data_url);
+
+    renderPublicServices(payload.public_services);
+    renderLocalServices(payload.local_services);
+    appendRule("rules-list", payload.public_api.rules);
+    appendRule("wrappers-list", payload.public_api.response_wrappers);
+    renderGroups("manual-groups", payload.public_api.groups);
+    renderGroups("generated-groups", payload.generated_api.groups);
+  </script>
+</body>
+</html>

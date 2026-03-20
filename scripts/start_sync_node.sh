@@ -269,6 +269,7 @@ def replace_section_bool(text: str, section: str, key: str, value: bool) -> str:
 app_text = app_path.read_text(encoding="utf-8")
 app_text = replace_root_value(app_text, "minimum-gas-prices", minimum_gas_prices)
 app_text = replace_section_bool(app_text, "api", "enable", True)
+app_text = replace_section_bool(app_text, "api", "swagger", False)
 app_text = replace_section_value(app_text, "api", "address", api_address)
 app_text = replace_section_bool(app_text, "grpc", "enable", True)
 app_text = replace_section_value(app_text, "grpc", "address", grpc_address)

@@ -20,14 +20,37 @@ The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosm
 |------|-------|
 | Cosmos Chain ID | `axon_8210-1` |
 | EVM Chain ID | `8210` |
-| EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656` |
 | Bootstrap Peer | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656` |
 | Genesis File | `docs/mainnet/genesis.json` |
 | Bootstrap Peers File | `docs/mainnet/bootstrap_peers.txt` |
 | Native Token | `AXON` |
 
-The repository publishes the public `EVM JSON-RPC` endpoint for wallets and applications, plus the P2P bootstrap entry for node discovery and sync.
+### Local Node Default Ports
+
+These are the default listening ports exposed by a local validator or sync node in the current codebase.
+
+| Service | Default Local Address | Notes |
+|------|-------|-------|
+| P2P | `tcp://127.0.0.1:26656` | Peer connectivity |
+| CometBFT RPC | `http://127.0.0.1:26657` | Low-level chain RPC |
+| EVM JSON-RPC | `http://127.0.0.1:8545` | Wallet and contract RPC |
+| EVM JSON-RPC WebSocket | `ws://127.0.0.1:8546` | Subscription transport |
+| Cosmos REST API | `http://127.0.0.1:1317` | Standard REST, Axon routes, and `/axon/public/v1/` |
+| gRPC | `127.0.0.1:9090` | Typed service access |
+
+### Public API Entry Points
+
+These are internally maintained public HTTPS/domain entries. Functionally they expose the same node capabilities as the local services above; they are not a separate protocol implementation.
+
+| Service | Public Entry | Maps To |
+|------|-------|-------|
+| Unified API Entry | `https://mainnet-api.axonchain.ai/` | Local node REST/API capability set |
+| Runtime API Docs | `https://mainnet-api.axonchain.ai/docs/` | Unified API docs site |
+| EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` | Local `8545` EVM JSON-RPC |
+| EVM JSON-RPC WebSocket | `https://mainnet-rpc-ws.axonchain.ai/` | Local `8546` EVM JSON-RPC WebSocket |
+
+Runtime API docs: `https://mainnet-api.axonchain.ai/docs/`
 
 ## MetaMask
 

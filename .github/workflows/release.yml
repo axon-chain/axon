@@ -10,25 +10,18 @@ on:
         description: "Release version tag, for example v1.0.0"
         required: true
 
-permissions:
-  contents: write
-
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  release:
-    name: Build Release Artifacts
+  resolve:
+    name: Resolve Release Version
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_plain: ${{ steps.version.outputs.version_plain }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
       - name: Resolve version
         id: version
         shell: bash
@@ -38,48 +31,179 @@ jobs:
           else
             VERSION="${GITHUB_REF_NAME}"
           fi
+
+          if [[ ! "$VERSION" =~ ^v ]]; then
+            VERSION="v${VERSION}"
+          fi
+
           echo "version=${VERSION}" >>"${GITHUB_OUTPUT}"
+          echo "version_plain=${VERSION#v}" >>"${GITHUB_OUTPUT}"
 
-      - name: Build release matrix
+  build:
+    name: Build Release Artifacts (${{ matrix.target }})
+    needs: resolve
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux/amd64
+            target_id: linux-amd64
+            runner: ubuntu-24.04
+          - target: linux/arm64
+            target_id: linux-arm64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore packaging cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .cache/go-build
+            .cache/gomod
+          key: release-cache-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('go.sum', 'tools/agent-daemon/go.sum') }}
+          restore-keys: |
+            release-cache-${{ runner.os }}-${{ runner.arch }}-
+
+      - name: Build target release bundle
         shell: bash
         run: |
-          make package-all \
-            VERSION="${{ steps.version.outputs.version }}" \
-            OUT_DIR="${{ github.workspace }}/dist/releases" \
-            RELEASE_NOTES_FILE="${{ github.workspace }}/CHANGELOG.md"
+          VERSION="${{ needs.resolve.outputs.version }}"
+          OUT_DIR="${{ github.workspace }}/dist/releases/${{ matrix.target_id }}"
 
-      - name: Prepare direct-download binaries
+          bash packaging/build_release_matrix.sh \
+            --version "${VERSION}" \
+            --out "${OUT_DIR}" \
+            --targets "${{ matrix.target }}" \
+            --notes "${{ github.workspace }}/CHANGELOG.md"
+
+      - name: Upload target artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ needs.resolve.outputs.version }}-${{ matrix.target_id }}
+          path: dist/releases/${{ matrix.target_id }}/${{ needs.resolve.outputs.version }}/
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs:
+      - resolve
+      - build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download target artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-${{ needs.resolve.outputs.version }}-*
+          path: dist/partials
+
+      - name: Assemble final release directory
         shell: bash
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          VERSION_PLAIN="${VERSION#v}"
-          RELEASE_DIR="dist/releases/${VERSION}"
+          VERSION="${{ needs.resolve.outputs.version }}"
+          VERSION_PLAIN="${{ needs.resolve.outputs.version_plain }}"
+          FINAL_DIR="${{ github.workspace }}/dist/releases/${VERSION}"
+          PARTIAL_ROOT="${{ github.workspace }}/dist/partials"
 
-          cp "${RELEASE_DIR}/axond_${VERSION_PLAIN}_linux_amd64/axond" "${RELEASE_DIR}/axond_linux_amd64"
-          cp "${RELEASE_DIR}/axond_${VERSION_PLAIN}_linux_arm64/axond" "${RELEASE_DIR}/axond_linux_arm64"
+          rm -rf "${FINAL_DIR}"
+          mkdir -p "${FINAL_DIR}"
 
-          sha256sum "${RELEASE_DIR}/axond_linux_amd64" | awk '{print $1}' > "${RELEASE_DIR}/axond_linux_amd64.sha256"
-          sha256sum "${RELEASE_DIR}/axond_linux_arm64" | awk '{print $1}' > "${RELEASE_DIR}/axond_linux_arm64.sha256"
+          shopt -s nullglob
+          partial_dirs=("${PARTIAL_ROOT}"/*)
+          if [[ ${#partial_dirs[@]} -eq 0 ]]; then
+            echo "no partial release artifacts downloaded" >&2
+            exit 1
+          fi
+
+          copied_notes=0
+          report_index=0
+          for partial_dir in "${partial_dirs[@]}"; do
+            if [[ ! -d "${partial_dir}" ]]; then
+              continue
+            fi
+
+            for archive in "${partial_dir}"/*.tar.gz "${partial_dir}"/*.zip; do
+              [[ -f "${archive}" ]] || continue
+              cp "${archive}" "${FINAL_DIR}/"
+            done
+
+            for staged_dir in "${partial_dir}"/axond_* "${partial_dir}"/agent-daemon_*; do
+              [[ -d "${staged_dir}" ]] || continue
+              cp -a "${staged_dir}" "${FINAL_DIR}/"
+            done
+
+            if [[ -f "${partial_dir}/RELEASE_NOTES.md" && "${copied_notes}" -eq 0 ]]; then
+              cp "${partial_dir}/RELEASE_NOTES.md" "${FINAL_DIR}/RELEASE_NOTES.md"
+              copied_notes=1
+            fi
+
+            if [[ -f "${partial_dir}/BUILD_REPORT.md" ]]; then
+              report_index=$((report_index + 1))
+              cp "${partial_dir}/BUILD_REPORT.md" "${FINAL_DIR}/BUILD_REPORT_${report_index}.md"
+            fi
+          done
+
+          AMD64_DIR="${FINAL_DIR}/axond_${VERSION_PLAIN}_linux_amd64"
+          ARM64_DIR="${FINAL_DIR}/axond_${VERSION_PLAIN}_linux_arm64"
+
+          [[ -x "${AMD64_DIR}/axond" ]] || { echo "missing amd64 axond binary" >&2; exit 1; }
+          [[ -x "${ARM64_DIR}/axond" ]] || { echo "missing arm64 axond binary" >&2; exit 1; }
+
+          cp "${AMD64_DIR}/axond" "${FINAL_DIR}/axond_linux_amd64"
+          cp "${ARM64_DIR}/axond" "${FINAL_DIR}/axond_linux_arm64"
+
+          sha256sum "${FINAL_DIR}/axond_linux_amd64" | awk '{print $1}' > "${FINAL_DIR}/axond_linux_amd64.sha256"
+          sha256sum "${FINAL_DIR}/axond_linux_arm64" | awk '{print $1}' > "${FINAL_DIR}/axond_linux_arm64.sha256"
+
+          (
+            cd "${FINAL_DIR}"
+            find . -maxdepth 1 -type f \( -name '*.tar.gz' -o -name '*.zip' \) -printf '%f\n' \
+              | sort \
+              | xargs -r sha256sum > SHA256SUMS
+          )
+
+          {
+            echo "# Release Build Report"
+            echo
+            echo "- Version: ${VERSION}"
+            echo "- Targets: linux/amd64, linux/arm64"
+            echo "- Build Strategy: parallel per-architecture GitHub Actions jobs"
+            echo
+            echo "## Per-target Reports"
+            echo
+            for report in "${FINAL_DIR}"/BUILD_REPORT_*.md; do
+              [[ -f "${report}" ]] || continue
+              echo "### $(basename "${report}")"
+              echo
+              cat "${report}"
+              echo
+            done
+          } > "${FINAL_DIR}/BUILD_REPORT.md"
 
       - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: release-${{ steps.version.outputs.version }}
-          path: dist/releases/${{ steps.version.outputs.version }}/
+          name: release-${{ needs.resolve.outputs.version }}
+          path: dist/releases/${{ needs.resolve.outputs.version }}/
           if-no-files-found: error
 
       - name: Publish GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.version.outputs.version }}
-          name: ${{ steps.version.outputs.version }}
+          tag_name: ${{ needs.resolve.outputs.version }}
+          name: ${{ needs.resolve.outputs.version }}
           generate_release_notes: true
           files: |
-            dist/releases/${{ steps.version.outputs.version }}/*.tar.gz
-            dist/releases/${{ steps.version.outputs.version }}/*.zip
-            dist/releases/${{ steps.version.outputs.version }}/axond_linux_amd64
-            dist/releases/${{ steps.version.outputs.version }}/axond_linux_amd64.sha256
-            dist/releases/${{ steps.version.outputs.version }}/axond_linux_arm64
-            dist/releases/${{ steps.version.outputs.version }}/axond_linux_arm64.sha256
-            dist/releases/${{ steps.version.outputs.version }}/SHA256SUMS
-            dist/releases/${{ steps.version.outputs.version }}/BUILD_REPORT.md
+            dist/releases/${{ needs.resolve.outputs.version }}/*.tar.gz
+            dist/releases/${{ needs.resolve.outputs.version }}/*.zip
+            dist/releases/${{ needs.resolve.outputs.version }}/axond_linux_amd64
+            dist/releases/${{ needs.resolve.outputs.version }}/axond_linux_amd64.sha256
+            dist/releases/${{ needs.resolve.outputs.version }}/axond_linux_arm64
+            dist/releases/${{ needs.resolve.outputs.version }}/axond_linux_arm64.sha256
+            dist/releases/${{ needs.resolve.outputs.version }}/SHA256SUMS
+            dist/releases/${{ needs.resolve.outputs.version }}/BUILD_REPORT.md

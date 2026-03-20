@@ -1,3 +1,5 @@
+# syntax=docker/dockerfile:1.7
+
 # ── Stage 1: Build ──────────────────────────────────────────
 FROM golang:1.25.7-trixie AS builder
 
@@ -7,10 +9,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /src
 COPY go.mod go.sum ./
-RUN go mod download
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go mod download
 
 COPY . .
-RUN CGO_ENABLED=1 make build
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    CGO_ENABLED=1 make build
 
 # ── Stage 2: Runtime ────────────────────────────────────────
 FROM debian:trixie-slim

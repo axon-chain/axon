@@ -45,10 +45,11 @@ These are internally maintained public HTTPS/domain entries. Functionally they e
 
 | Service | Public Entry | Maps To |
 |------|-------|-------|
-| Unified API Entry | `https://mainnet-api.axonchain.ai/` | Local node REST/API capability set |
+| Unified API Entry | `https://mainnet-api.axonchain.ai/` | Local REST (1317) including `/cosmos/*` + `/axon/public/v1/*` |
 | Runtime API Docs | `https://mainnet-api.axonchain.ai/docs/` | Unified API docs site |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` | Local `8545` EVM JSON-RPC |
 | EVM JSON-RPC WebSocket | `https://mainnet-rpc-ws.axonchain.ai/` | Local `8546` EVM JSON-RPC WebSocket |
+| CometBFT RPC | `https://mainnet-cometbft.axonchain.ai/` | Local `26657` CometBFT RPC |
 
 Runtime API docs: `https://mainnet-api.axonchain.ai/docs/`
 

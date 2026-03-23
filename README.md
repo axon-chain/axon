@@ -536,7 +536,7 @@ Related implementations:
 - [Whitepaper](docs/whitepaper_en.md)
 - [v2 Upgrade Proposal](Axon_v2_升级产品方案.md)
 - [Security Audit](docs/SECURITY_AUDIT_EN.md)
-- [Community Tools (风险自理)](docs/community-tools.md)
+- [Community Tools (use at your own risk)](docs/community-tools.md)
 
 ## License
 

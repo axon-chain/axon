@@ -1,19 +1,19 @@
-# Community Tools / 社区工具
+# Community Tools
 
-本页收录由社区维护、与 Axon 生态相关的工具与脚本。它们**未经过 Axon 核心团队的安全审计，不构成官方背书**，使用者需自行评估与承担风险（包括但不限于资金/密钥泄露、错误配置导致的链上损失）。
+This page lists community-maintained tools related to the Axon ecosystem. **They have not been audited by the Axon core team and are not official endorsements. Use entirely at your own risk, including possible loss of funds/keys or misconfiguration.**
 
-使用前的最低自检清单：
-- 通读源代码与 README，确认未硬编码私钥/助记词，网络与费用设置符合预期。
-- 先在隔离环境或本地私网/模拟环境验证，避免直接在主网热钱包上运行。
-- 使用最小权限账户，妥善管理日志与备份文件。
+Minimum self-check before use:
+- Read the source code and README; ensure there are no hardcoded private keys/mnemonics and that network/fee settings are expected.
+- First validate in an isolated environment or private/simulated network; avoid running directly with mainnet hot wallets.
+- Use least-privilege accounts and protect any logs or backup files.
 
-## 当前收录
+## Current entries
 
-### axon-agent-mining（社区贡献）
-- 仓库：https://github.com/6tizer/axon-agent-mining
-- 维护者：@6tizer（社区）
-- 功能概述：一键部署挖矿 Agent，含心跳守护、多 Agent（BIP-44 HD）、L1/L2 信誉监控、系统d 守护配置与故障排查指引。
-- 状态：社区维护，MIT 许可；**未经过 Axon 官方审计，默认无二进制发行版，需自行从源码阅读与部署。**
-- 使用注意：运行前请手动审查脚本、在隔离节点或本地私网验证，勿在脚本中存放明文私钥，必要时使用硬件钱包或冷签名流程。
+### axon-agent-mining (community)
+- Repo: https://github.com/6tizer/axon-agent-mining
+- Maintainer: @6tizer (community)
+- Summary: One-click deployment of mining agents with heartbeat daemon, multi-agent (BIP-44 HD) support, L1/L2 reputation tracking, systemd service setup, and troubleshooting guide.
+- Status: Community-maintained, MIT license; **not audited by Axon, no official binaries—review and deploy from source.**
+- Notes: Audit the scripts yourself; test on isolated/private nodes; never keep plaintext private keys in scripts; consider hardware wallets or cold-signing flows.
 
-欢迎社区提交新的工具：请在仓库提 Issue 说明工具目的、README、许可证、安装步骤、测试方式与风险提示，满足最小自检清单后可考虑收录。
+Community submissions are welcome: open an issue describing the tool’s purpose, README, license, install steps, tests, and risk notes. If it meets the self-check list, it may be added here.

@@ -64,6 +64,7 @@ Public RPC admission policy:
 - Heavy query policy: total concurrency `1`, per-IP concurrency `1`, per-IP rate `1 request per second`
 - Transaction submission methods such as `eth_sendRawTransaction` are not throttled by the default query rate-limit profile
 - Agents and transaction-sending clients should use the EVM RPC entry for write traffic. This path gives transaction submission higher priority and helps reduce the impact of rate limiting on transaction inclusion.
+- If the gateway returns `429`, it means your requests are arriving too frequently and need to be reduced or optimized. This is a rate-limit response, not a service fault.
 
 ## MetaMask
 

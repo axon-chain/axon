@@ -30,6 +30,7 @@ data/
 coverage.out
 coverage.html
 ops
+ops_tools
 # Protobuf generated (keep committed - needed for build)
 # *.pb.go
 # *.pb.gw.go

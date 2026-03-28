@@ -20,8 +20,8 @@ The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosm
 |------|-------|
 | Cosmos Chain ID | `axon_8210-1` |
 | EVM Chain ID | `8210` |
-| P2P | `tcp://mainnet-node.axonchain.ai:26656` |
-| Bootstrap Peer | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656` |
+| P2P | `tcp://mainnet-node.axonchain.ai:26656`, `tcp://mainnet-node2.axonchain.ai:26656` |
+| Bootstrap Peers | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656`, `2e1b411847dfbf7c93dea0189dbecefb805ca866@mainnet-node2.axonchain.ai:26656` |
 | Genesis File | `docs/mainnet/genesis.json` |
 | Bootstrap Peers File | `docs/mainnet/bootstrap_peers.txt` |
 | Native Token | `AXON` |
@@ -35,7 +35,6 @@ These are the default listening ports exposed by a local validator or sync node 
 | P2P | `tcp://127.0.0.1:26656` | Peer connectivity |
 | CometBFT RPC | `http://127.0.0.1:26657` | Low-level chain RPC |
 | EVM JSON-RPC | `http://127.0.0.1:8545` | Wallet and contract RPC |
-| EVM JSON-RPC WebSocket | `ws://127.0.0.1:8546` | Subscription transport |
 | Cosmos REST API | `http://127.0.0.1:1317` | Standard REST, Axon routes, and `/axon/public/v1/` |
 | gRPC | `127.0.0.1:9090` | Typed service access |
 
@@ -48,10 +47,22 @@ These are internally maintained public HTTPS/domain entries. Functionally they e
 | Unified API Entry | `https://mainnet-api.axonchain.ai/` | Local REST (1317) including `/cosmos/*` + `/axon/public/v1/*` |
 | Runtime API Docs | `https://mainnet-api.axonchain.ai/docs/` | Unified API docs site |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` | Local `8545` EVM JSON-RPC |
-| EVM JSON-RPC WebSocket | `https://mainnet-rpc-ws.axonchain.ai/` | Local `8546` EVM JSON-RPC WebSocket |
 | CometBFT RPC | `https://mainnet-cometbft.axonchain.ai/` | Local `26657` CometBFT RPC |
 
 Runtime API docs: `https://mainnet-api.axonchain.ai/docs/`
+
+### Public RPC Policy
+
+The public gateways above are shared infrastructure operated for public access. They are not dedicated private capacity.
+
+Public RPC admission policy:
+
+- Limits are enforced by gateway policy as global and per-IP controls. No dedicated quota is reserved per user or per API key.
+- AI agents and autonomous clients must respect the rate and concurrency limits of each public API entry.
+- Heavy query methods are currently classified by gateway policy as: `eth_call`, `eth_estimateGas`, `eth_getLogs`, `debug_*`, `trace_*`
+- Standard query policy: total concurrency `10`, per-IP concurrency `10`, per-IP rate `10 requests per second`
+- Heavy query policy: total concurrency `1`, per-IP concurrency `1`, per-IP rate `1 request per second`
+- Transaction submission methods such as `eth_sendRawTransaction` are not throttled by the default query rate-limit profile
 
 ## MetaMask
 
@@ -404,7 +415,6 @@ docker run --rm -it \
   -p 26656:26656 \
   -p 26657:26657 \
   -p 8545:8545 \
-  -p 8546:8546 \
   -p 1317:1317 \
   -p 9090:9090 \
   --entrypoint bash \
@@ -419,7 +429,6 @@ docker run --rm -it \
   -p 26656:26656 \
   -p 26657:26657 \
   -p 8545:8545 \
-  -p 8546:8546 \
   -p 1317:1317 \
   -p 9090:9090 \
   --entrypoint bash \
@@ -448,7 +457,7 @@ Runtime behavior:
 - `./start_validator_node.sh start` only starts the local validator node process
 - `./start_validator_node.sh status` and `./start_sync_node.sh status` report state from the official current-directory runtime paths under `data/`, so operators should prefer these commands over any older external status helper scripts
 - the release bundle produced by `packaging/package_axond.sh` already contains `axond`, both scripts, `genesis.json`, and `bootstrap_peers.txt`
-- the default node service port set is `P2P 26656`, `CometBFT RPC 26657`, `JSON-RPC 8545`, `JSON-RPC WS 8546`, `REST API 1317`, `gRPC 9090`
+- the default node service port set is `P2P 26656`, `CometBFT RPC 26657`, `JSON-RPC 8545`, `REST API 1317`, `gRPC 9090`
 
 ## SDK
 

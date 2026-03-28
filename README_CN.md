@@ -20,8 +20,8 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 |------|-----|
 | Cosmos Chain ID | `axon_8210-1` |
 | EVM Chain ID | `8210` |
-| P2P | `tcp://mainnet-node.axonchain.ai:26656` |
-| Bootstrap Peer | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656` |
+| P2P | `tcp://mainnet-node.axonchain.ai:26656`、`tcp://mainnet-node2.axonchain.ai:26656` |
+| Bootstrap Peers | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656`、`2e1b411847dfbf7c93dea0189dbecefb805ca866@mainnet-node2.axonchain.ai:26656` |
 | Genesis 文件 | `docs/mainnet/genesis.json` |
 | Bootstrap Peers 文件 | `docs/mainnet/bootstrap_peers.txt` |
 | 原生代币 | `AXON` |
@@ -35,7 +35,6 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 | P2P | `tcp://127.0.0.1:26656` | 节点互联 |
 | CometBFT RPC | `http://127.0.0.1:26657` | 底层链 RPC |
 | EVM JSON-RPC | `http://127.0.0.1:8545` | 钱包与合约 RPC |
-| EVM JSON-RPC WebSocket | `ws://127.0.0.1:8546` | 订阅通道 |
 | Cosmos REST API | `http://127.0.0.1:1317` | 标准 REST、Axon 路由与 `/axon/public/v1/` |
 | gRPC | `127.0.0.1:9090` | 类型化服务访问 |
 
@@ -48,9 +47,21 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 | 统一 API 入口 | `https://mainnet-api.axonchain.ai/` | 本地节点 REST/API 能力集合 |
 | 运行时 API 文档 | `https://mainnet-api.axonchain.ai/docs/` | 统一 API 文档站点 |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` | 本地 `8545` EVM JSON-RPC |
-| EVM JSON-RPC WebSocket | `https://mainnet-rpc-ws.axonchain.ai/` | 本地 `8546` EVM JSON-RPC WebSocket |
 
 运行时 API 文档地址：`https://mainnet-api.axonchain.ai/docs/`
+
+### 公共 RPC 策略
+
+上述公共入口属于共享网关能力，不是独占的私有容量。
+
+公共 RPC 准入策略：
+
+- 限制由网关策略统一执行，同时包含全局限制与按 IP 限制，不按用户或 API Key 预留独占额度。
+- AI agent 与其他自动化客户端必须遵守各公共 API 入口的速率和并发限制。
+- 当前网关策略下，重型请求默认包括：`eth_call`、`eth_estimateGas`、`eth_getLogs`、`debug_*`、`trace_*`
+- 普通查询策略：总并发 `10`、单 IP 并发 `10`、单 IP 速率 `每秒 10 个请求`
+- 重型查询策略：总并发 `1`、单 IP 并发 `1`、单 IP 速率 `每秒 1 个请求`
+- `eth_sendRawTransaction` 等交易提交请求默认不套用查询类限速策略
 
 ## MetaMask
 
@@ -409,7 +420,6 @@ docker run --rm -it \
   -p 26656:26656 \
   -p 26657:26657 \
   -p 8545:8545 \
-  -p 8546:8546 \
   -p 1317:1317 \
   -p 9090:9090 \
   --entrypoint bash \
@@ -424,7 +434,6 @@ docker run --rm -it \
   -p 26656:26656 \
   -p 26657:26657 \
   -p 8545:8545 \
-  -p 8546:8546 \
   -p 1317:1317 \
   -p 9090:9090 \
   --entrypoint bash \
@@ -453,7 +462,7 @@ docker run --rm -it \
 - `./start_validator_node.sh start` 只负责启动本地验证者节点进程
 - `./start_validator_node.sh status` 和 `./start_sync_node.sh status` 会基于当前目录下官方 `data/` 运行路径报告状态，运维时应优先使用这两个命令，而不是任何旧的外部状态辅助脚本
 - `packaging/package_axond.sh` 生成的 release 包会直接包含 `axond`、两个启动脚本、`genesis.json` 和 `bootstrap_peers.txt`
-- 节点默认服务端口统一为：`P2P 26656`、`CometBFT RPC 26657`、`JSON-RPC 8545`、`JSON-RPC WS 8546`、`REST API 1317`、`gRPC 9090`
+- 节点默认服务端口统一为：`P2P 26656`、`CometBFT RPC 26657`、`JSON-RPC 8545`、`REST API 1317`、`gRPC 9090`
 
 ## SDK
 

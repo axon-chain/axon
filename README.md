@@ -20,8 +20,8 @@ The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosm
 |------|-------|
 | Cosmos Chain ID | `axon_8210-1` |
 | EVM Chain ID | `8210` |
-| P2P | `tcp://mainnet-node.axonchain.ai:26656`, `tcp://mainnet-node2.axonchain.ai:26656` |
-| Bootstrap Peers | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656`, `2e1b411847dfbf7c93dea0189dbecefb805ca866@mainnet-node2.axonchain.ai:26656` |
+| P2P | `tcp://mainnet-node.axonchain.ai:26656` |
+| Bootstrap Peers | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656` |
 | Genesis File | `docs/mainnet/genesis.json` |
 | Bootstrap Peers File | `docs/mainnet/bootstrap_peers.txt` |
 | Native Token | `AXON` |

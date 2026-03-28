@@ -1,2 +1,1 @@
 e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656
-2e1b411847dfbf7c93dea0189dbecefb805ca866@mainnet-node2.axonchain.ai:26656

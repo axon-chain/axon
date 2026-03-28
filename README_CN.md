@@ -16,15 +16,15 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 
 ## 主网
 
-| 项目 | 值 |
-|------|-----|
-| Cosmos Chain ID | `axon_8210-1` |
-| EVM Chain ID | `8210` |
+| 项目 | 值                                                                                |
+|------|----------------------------------------------------------------------------------|
+| Cosmos Chain ID | `axon_8210-1`                                                                    |
+| EVM Chain ID | `8210`                                                                           |
 | P2P | `tcp://mainnet-node.axonchain.ai:26656`、`tcp://mainnet-node2.axonchain.ai:26656` |
-| Bootstrap Peers | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656`、`2e1b411847dfbf7c93dea0189dbecefb805ca866@mainnet-node2.axonchain.ai:26656` |
-| Genesis 文件 | `docs/mainnet/genesis.json` |
-| Bootstrap Peers 文件 | `docs/mainnet/bootstrap_peers.txt` |
-| 原生代币 | `AXON` |
+| Bootstrap Peers | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656`       |
+| Genesis 文件 | `docs/mainnet/genesis.json`                                                      |
+| Bootstrap Peers 文件 | `docs/mainnet/bootstrap_peers.txt`                                               |
+| 原生代币 | `AXON`                                                                           |
 
 ### 本地节点默认端口
 

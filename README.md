@@ -35,6 +35,7 @@ These are the default listening ports exposed by a local validator or sync node 
 | P2P | `tcp://127.0.0.1:26656` | Peer connectivity |
 | CometBFT RPC | `http://127.0.0.1:26657` | Low-level chain RPC |
 | EVM JSON-RPC | `http://127.0.0.1:8545` | Wallet and contract RPC |
+| EVM JSON-RPC WebSocket | `ws://127.0.0.1:8546` | Local subscription transport |
 | Cosmos REST API | `http://127.0.0.1:1317` | Standard REST, Axon routes, and `/axon/public/v1/` |
 | gRPC | `127.0.0.1:9090` | Typed service access |
 
@@ -59,10 +60,7 @@ Public RPC admission policy:
 
 - Limits are enforced by gateway policy as global and per-IP controls. No dedicated quota is reserved per user or per API key.
 - AI agents and autonomous clients must respect the rate and concurrency limits of each public API entry.
-- Heavy query methods are currently classified by gateway policy as: `eth_call`, `eth_estimateGas`, `eth_getLogs`, `debug_*`, `trace_*`
-- Standard query policy: total concurrency `10`, per-IP concurrency `10`, per-IP rate `10 requests per second`
-- Heavy query policy: total concurrency `1`, per-IP concurrency `1`, per-IP rate `1 request per second`
-- Transaction submission methods such as `eth_sendRawTransaction` are not throttled by the default query rate-limit profile
+- Request limits are applied dynamically based on current server pressure.
 - Agents and transaction-sending clients should use the EVM RPC entry for write traffic. This path gives transaction submission higher priority and helps reduce the impact of rate limiting on transaction inclusion.
 - If the gateway returns `429`, it means your requests are arriving too frequently and need to be reduced or optimized. This is a rate-limit response, not a service fault.
 

@@ -277,7 +277,6 @@ func buildPublicServiceEntries(origin string) []apiDocsServiceEntry {
 	return []apiDocsServiceEntry{
 		{Name: "Unified API Entry", Entry: origin + "/", Notes: "Internally maintained public HTTPS entry for the node REST/API capability set"},
 		{Name: "EVM JSON-RPC", Entry: "https://mainnet-rpc.axonchain.ai/", Notes: "Internally maintained public entry mapping to the node EVM JSON-RPC capability on local port 8545"},
-		{Name: "EVM JSON-RPC WebSocket", Entry: "https://mainnet-rpc-ws.axonchain.ai/", Notes: "Internally maintained public entry mapping to the node EVM JSON-RPC WebSocket capability on local port 8546"},
 		{Name: "Axon Public API", Entry: origin + publicAPIRoot + "/", Notes: "Repository-owned aggregated interface built on current node data"},
 		{Name: "Axon Agent API", Entry: origin + "/axon/agent/v1/", Notes: "Generated agent query routes exposed through the same public entry"},
 		{Name: "API Docs", Entry: origin + "/docs/", Notes: "Runtime docs site for the same public API entry"},
@@ -289,7 +288,7 @@ func buildLocalServiceEntries() []apiDocsLocalService {
 		{Name: "P2P", Port: "26656", LocalForm: "tcp://127.0.0.1:26656", Notes: "Peer connectivity only"},
 		{Name: "CometBFT RPC", Port: "26657", LocalForm: "http://127.0.0.1:26657", Notes: "Low-level chain RPC"},
 		{Name: "EVM JSON-RPC", Port: "8545", LocalForm: "http://127.0.0.1:8545", Notes: "Wallet and dApp RPC"},
-		{Name: "EVM JSON-RPC WebSocket", Port: "8546", LocalForm: "ws://127.0.0.1:8546", Notes: "Subscription transport"},
+		{Name: "EVM JSON-RPC WebSocket", Port: "8546", LocalForm: "ws://127.0.0.1:8546", Notes: "Local subscription transport"},
 		{Name: "Cosmos REST API", Port: "1317", LocalForm: "http://127.0.0.1:1317", Notes: "Standard REST, generated routes, and /axon/public/v1"},
 		{Name: "gRPC", Port: "9090", LocalForm: "127.0.0.1:9090", Notes: "Typed service access"},
 	}

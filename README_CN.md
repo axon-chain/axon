@@ -20,7 +20,7 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 |------|----------------------------------------------------------------------------------|
 | Cosmos Chain ID | `axon_8210-1`                                                                    |
 | EVM Chain ID | `8210`                                                                           |
-| P2P | `tcp://mainnet-node.axonchain.ai:26656`、`tcp://mainnet-node2.axonchain.ai:26656` |
+| P2P | `tcp://mainnet-node.axonchain.ai:26656` |
 | Bootstrap Peers | `e47ec82a1d08a371e3c235e6554496be2f114eae@mainnet-node.axonchain.ai:26656`       |
 | Genesis 文件 | `docs/mainnet/genesis.json`                                                      |
 | Bootstrap Peers 文件 | `docs/mainnet/bootstrap_peers.txt`                                               |
@@ -35,6 +35,7 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 | P2P | `tcp://127.0.0.1:26656` | 节点互联 |
 | CometBFT RPC | `http://127.0.0.1:26657` | 底层链 RPC |
 | EVM JSON-RPC | `http://127.0.0.1:8545` | 钱包与合约 RPC |
+| EVM JSON-RPC WebSocket | `ws://127.0.0.1:8546` | 本地订阅通道 |
 | Cosmos REST API | `http://127.0.0.1:1317` | 标准 REST、Axon 路由与 `/axon/public/v1/` |
 | gRPC | `127.0.0.1:9090` | 类型化服务访问 |
 
@@ -47,6 +48,7 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 | 统一 API 入口 | `https://mainnet-api.axonchain.ai/` | 本地节点 REST/API 能力集合 |
 | 运行时 API 文档 | `https://mainnet-api.axonchain.ai/docs/` | 统一 API 文档站点 |
 | EVM JSON-RPC | `https://mainnet-rpc.axonchain.ai/` | 本地 `8545` EVM JSON-RPC |
+| CometBFT RPC | `https://mainnet-cometbft.axonchain.ai/` | 本地 `26657` CometBFT RPC |
 
 运行时 API 文档地址：`https://mainnet-api.axonchain.ai/docs/`
 
@@ -58,10 +60,7 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 
 - 限制由网关策略统一执行，同时包含全局限制与按 IP 限制，不按用户或 API Key 预留独占额度。
 - AI agent 与其他自动化客户端必须遵守各公共 API 入口的速率和并发限制。
-- 当前网关策略下，重型请求默认包括：`eth_call`、`eth_estimateGas`、`eth_getLogs`、`debug_*`、`trace_*`
-- 普通查询策略：总并发 `10`、单 IP 并发 `10`、单 IP 速率 `每秒 10 个请求`
-- 重型查询策略：总并发 `1`、单 IP 并发 `1`、单 IP 速率 `每秒 1 个请求`
-- `eth_sendRawTransaction` 等交易提交请求默认不套用查询类限速策略
+- 请求限速会根据服务器当前压力动态调整。
 - Agent 或其他需要发交易的客户端，写入流量请优先走 EVM RPC 入口。这个通道会对交易发送给予更高优先级，尽量降低限速策略对交易上链的影响。
 - 如果接口返回 `429`，表示你的请求过于频繁，需要优化并降低请求频率。这是限速响应，不代表服务故障。
 

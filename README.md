@@ -63,6 +63,7 @@ Public RPC admission policy:
 - Standard query policy: total concurrency `10`, per-IP concurrency `10`, per-IP rate `10 requests per second`
 - Heavy query policy: total concurrency `1`, per-IP concurrency `1`, per-IP rate `1 request per second`
 - Transaction submission methods such as `eth_sendRawTransaction` are not throttled by the default query rate-limit profile
+- Agents and transaction-sending clients should use the EVM RPC entry for write traffic. This path gives transaction submission higher priority and helps reduce the impact of rate limiting on transaction inclusion.
 
 ## MetaMask
 

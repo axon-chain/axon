@@ -22,6 +22,9 @@ JSON_RPC_WS_ADDRESS="${JSON_RPC_WS_ADDRESS:-0.0.0.0:8546}"
 API_ADDRESS="${API_ADDRESS:-tcp://0.0.0.0:1317}"
 GRPC_ADDRESS="${GRPC_ADDRESS:-0.0.0.0:9090}"
 MONIKER="${MONIKER:-axon-sync}"
+SYNC_NODE_PROFILE="${SYNC_NODE_PROFILE:-rpc-30d}"
+RPC_LADDR=""
+PROFILE_LABEL=""
 
 AXOND_DOWNLOAD_URL_LINUX_AMD64="${AXOND_DOWNLOAD_URL_LINUX_AMD64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64}"
 AXOND_DOWNLOAD_URL_LINUX_ARM64="${AXOND_DOWNLOAD_URL_LINUX_ARM64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_arm64}"
@@ -35,6 +38,21 @@ log() {
 die() {
     printf 'error: %s\n' "$*" >&2
     exit 1
+}
+
+normalize_sync_node_profile() {
+    local raw="${1:-}"
+    local normalized=""
+
+    normalized="${raw,,}"
+    case "$normalized" in
+        rpc-30d|archive|p2p)
+            printf '%s\n' "$normalized"
+            ;;
+        *)
+            die "SYNC_NODE_PROFILE must be one of: rpc-30d, archive, p2p"
+            ;;
+    esac
 }
 
 need_cmd() {
@@ -218,17 +236,21 @@ PYEOF
 configure_runtime_files() {
     local persistent_peers="$1"
 
+    [ -f "$HOME_DIR/config/app.toml" ] || die "missing generated app.toml at $HOME_DIR/config/app.toml after init"
+    [ -f "$HOME_DIR/config/config.toml" ] || die "missing generated config.toml at $HOME_DIR/config/config.toml after init"
+
     python3 - \
         "$HOME_DIR/config/app.toml" \
         "$HOME_DIR/config/config.toml" \
         "$MIN_GAS_PRICES" \
         "$persistent_peers" \
         "$P2P_EXTERNAL_ADDRESS" \
-        "$RPC_PORT" \
+        "$RPC_LADDR" \
         "$JSON_RPC_ADDRESS" \
         "$JSON_RPC_WS_ADDRESS" \
         "$API_ADDRESS" \
-        "$GRPC_ADDRESS" <<'PYEOF'
+        "$GRPC_ADDRESS" \
+        "$SYNC_NODE_PROFILE" <<'PYEOF'
 from pathlib import Path
 import re
 import sys
@@ -238,11 +260,12 @@ config_path = Path(sys.argv[2])
 minimum_gas_prices = sys.argv[3]
 persistent_peers = sys.argv[4]
 external_address = sys.argv[5]
-rpc_port = sys.argv[6]
+rpc_laddr = sys.argv[6]
 json_rpc_address = sys.argv[7]
 json_rpc_ws_address = sys.argv[8]
 api_address = sys.argv[9]
 grpc_address = sys.argv[10]
+profile = sys.argv[11]
 
 def replace_root_value(text: str, key: str, value: str) -> str:
     pattern = rf'(^\s*{re.escape(key)}\s*=\s*)".*?"'
@@ -266,22 +289,81 @@ def replace_section_bool(text: str, section: str, key: str, value: bool) -> str:
         raise SystemExit(f"failed to update [{section}] {key}")
     return updated
 
+def replace_root_int(text: str, key: str, value: int) -> str:
+    pattern = rf'(^\s*{re.escape(key)}\s*=\s*)[0-9]+'
+    updated, count = re.subn(pattern, lambda item: f'{item.group(1)}{value}', text, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise SystemExit(f"failed to update root int {key}")
+    return updated
+
+def replace_root_array(text: str, key: str, value_literal: str) -> str:
+    pattern = rf'(^\s*{re.escape(key)}\s*=\s*)\[[^\n]*\]'
+    updated, count = re.subn(pattern, lambda item: f'{item.group(1)}{value_literal}', text, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise SystemExit(f"failed to update root array {key}")
+    return updated
+
+def replace_section_value_str(text: str, section: str, key: str, value: str) -> str:
+    return replace_section_value(text, section, key, value)
+
+def replace_section_int(text: str, section: str, key: str, value: int) -> str:
+    pattern = rf'(\[{re.escape(section)}\][\s\S]*?^\s*{re.escape(key)}\s*=\s*)[0-9]+'
+    updated, count = re.subn(pattern, lambda item: f'{item.group(1)}{value}', text, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise SystemExit(f"failed to update [{section}] int {key}")
+    return updated
+
 app_text = app_path.read_text(encoding="utf-8")
 app_text = replace_root_value(app_text, "minimum-gas-prices", minimum_gas_prices)
-app_text = replace_section_bool(app_text, "api", "enable", True)
-app_text = replace_section_bool(app_text, "api", "swagger", False)
-app_text = replace_section_value(app_text, "api", "address", api_address)
-app_text = replace_section_bool(app_text, "grpc", "enable", True)
-app_text = replace_section_value(app_text, "grpc", "address", grpc_address)
-app_text = replace_section_bool(app_text, "json-rpc", "enable", True)
-app_text = replace_section_value(app_text, "json-rpc", "address", json_rpc_address)
-app_text = replace_section_value(app_text, "json-rpc", "ws-address", json_rpc_ws_address)
+app_text = replace_section_int(app_text, "state-sync", "snapshot-interval", 0)
+app_text = replace_section_int(app_text, "state-sync", "snapshot-keep-recent", 2)
+app_text = replace_section_bool(app_text, "json-rpc", "enable-indexer", False)
+
+if profile == "rpc-30d":
+    app_text = replace_root_value(app_text, "pruning", "custom")
+    app_text = replace_root_value(app_text, "pruning-keep-recent", "518400")
+    app_text = replace_root_value(app_text, "pruning-interval", "10")
+    app_text = replace_root_int(app_text, "min-retain-blocks", 518400)
+    app_text = replace_section_bool(app_text, "api", "enable", True)
+    app_text = replace_section_bool(app_text, "api", "swagger", False)
+    app_text = replace_section_value_str(app_text, "api", "address", api_address)
+    app_text = replace_section_bool(app_text, "grpc", "enable", True)
+    app_text = replace_section_value_str(app_text, "grpc", "address", grpc_address)
+    app_text = replace_section_bool(app_text, "grpc-web", "enable", True)
+    app_text = replace_section_bool(app_text, "json-rpc", "enable", True)
+    app_text = replace_section_value_str(app_text, "json-rpc", "address", json_rpc_address)
+    app_text = replace_section_value_str(app_text, "json-rpc", "ws-address", json_rpc_ws_address)
+elif profile == "archive":
+    app_text = replace_root_value(app_text, "pruning", "nothing")
+    app_text = replace_root_int(app_text, "min-retain-blocks", 0)
+    app_text = replace_section_bool(app_text, "api", "enable", True)
+    app_text = replace_section_bool(app_text, "api", "swagger", False)
+    app_text = replace_section_value_str(app_text, "api", "address", api_address)
+    app_text = replace_section_bool(app_text, "grpc", "enable", True)
+    app_text = replace_section_value_str(app_text, "grpc", "address", grpc_address)
+    app_text = replace_section_bool(app_text, "grpc-web", "enable", True)
+    app_text = replace_section_bool(app_text, "json-rpc", "enable", True)
+    app_text = replace_section_value_str(app_text, "json-rpc", "address", json_rpc_address)
+    app_text = replace_section_value_str(app_text, "json-rpc", "ws-address", json_rpc_ws_address)
+elif profile == "p2p":
+    app_text = replace_root_value(app_text, "pruning", "everything")
+    app_text = replace_root_value(app_text, "pruning-keep-recent", "0")
+    app_text = replace_root_value(app_text, "pruning-interval", "10")
+    app_text = replace_root_int(app_text, "min-retain-blocks", 0)
+    app_text = replace_section_bool(app_text, "api", "enable", False)
+    app_text = replace_section_bool(app_text, "grpc", "enable", False)
+    app_text = replace_section_bool(app_text, "grpc-web", "enable", False)
+    app_text = replace_section_bool(app_text, "json-rpc", "enable", False)
+else:
+    raise SystemExit(f"unsupported sync profile: {profile}")
 app_path.write_text(app_text, encoding="utf-8")
 
 config_text = config_path.read_text(encoding="utf-8")
 config_text = replace_root_value(config_text, "external_address", external_address)
 config_text = replace_root_value(config_text, "persistent_peers", persistent_peers)
-config_text = replace_root_value(config_text, "laddr", f"tcp://0.0.0.0:{rpc_port}")
+config_text = replace_root_value(config_text, "laddr", rpc_laddr)
+config_text = replace_section_bool(config_text, "storage", "discard_abci_responses", profile == "p2p")
+config_text = replace_section_value(config_text, "tx_index", "indexer", "null" if profile == "p2p" else "kv")
 config_path.write_text(config_text, encoding="utf-8")
 PYEOF
 }
@@ -305,7 +387,7 @@ start_node() {
         --minimum-gas-prices "$MIN_GAS_PRICES" \
         --p2p.laddr "tcp://0.0.0.0:${P2P_PORT}" \
         --p2p.persistent_peers "$(bootstrap_peers_value)" \
-        --rpc.laddr "tcp://0.0.0.0:${RPC_PORT}"
+        --rpc.laddr "$RPC_LADDR"
     )
 
     if [ -n "$P2P_EXTERNAL_ADDRESS" ]; then
@@ -337,11 +419,27 @@ Runtime data:
 
 Optional:
   - set P2P_EXTERNAL_ADDRESS=host:26656 only on publicly reachable nodes
+  - set SYNC_NODE_PROFILE=rpc-30d (default), archive, or p2p
 EOF
 }
 
 command_start() {
     need_cmd python3
+    SYNC_NODE_PROFILE="$(normalize_sync_node_profile "$SYNC_NODE_PROFILE")"
+    case "$SYNC_NODE_PROFILE" in
+        rpc-30d)
+            PROFILE_LABEL="rpc-30d"
+            RPC_LADDR="tcp://0.0.0.0:${RPC_PORT}"
+            ;;
+        archive)
+            PROFILE_LABEL="archive"
+            RPC_LADDR="tcp://0.0.0.0:${RPC_PORT}"
+            ;;
+        p2p)
+            PROFILE_LABEL="p2p"
+            RPC_LADDR="tcp://127.0.0.1:${RPC_PORT}"
+            ;;
+    esac
     ensure_binary
     require_file "$GENESIS_FILE"
     require_file "$BOOTSTRAP_PEERS_FILE"
@@ -361,8 +459,14 @@ command_start() {
     echo "Sync node is configured."
     echo "  Home:      $HOME_DIR"
     echo "  Chain ID:  $CHAIN_ID"
+    echo "  Profile:   $PROFILE_LABEL"
     echo "  Peer:      $(cat "$PEER_INFO_FILE")"
     echo "  Upstream:  $(bootstrap_peers_value)"
+    if [ "$SYNC_NODE_PROFILE" = "p2p" ]; then
+        echo "  Services:  external RPC/API disabled"
+    else
+        echo "  Services:  RPC/API enabled"
+    fi
     echo
 
     stop_existing_node

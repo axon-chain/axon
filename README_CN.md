@@ -28,7 +28,7 @@ Axon v2 引入了 **信誉挖矿**、**反 Sybil 经济闭环** 和 **隐私交�
 
 ### 本地节点默认端口
 
-以下是当前代码里 validator 或 sync 节点默认监听的本地端口。
+以下是节点 profile 开启对应服务时使用的标准端口。
 
 | 服务 | 默认本地地址 | 说明 |
 |------|------|------|
@@ -403,6 +403,13 @@ cd /opt/axon-node
 ./start_sync_node.sh
 ```
 
+全量历史同步节点示例：
+
+```bash
+cd /opt/axon-node
+SYNC_NODE_PROFILE=archive ./start_sync_node.sh
+```
+
 ```bash
 cd /opt/axon-node
 KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init
@@ -434,9 +441,6 @@ docker run --rm -it \
   -w /opt/axon-node \
   -p 26656:26656 \
   -p 26657:26657 \
-  -p 8545:8545 \
-  -p 1317:1317 \
-  -p 9090:9090 \
   --entrypoint bash \
   debian:trixie-slim \
   -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps coreutils && KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init'
@@ -457,10 +461,14 @@ docker run --rm -it \
 - 只有需要接受其他节点入站连接的公网节点，才设置 `P2P_EXTERNAL_ADDRESS=host:26656`
 - `./start_validator_node.sh init` 会创建或导入验证者账户；如果生成的是新账户，只会在标准输出中打印一次助记词，同时写入 `data/validator.address`、`data/validator.valoper`、`data/validator.consensus_pubkey.json` 和 `data/peer_info.txt`
 - 验证者脚本默认使用 `KEYRING_BACKEND=file`；执行验证者命令前需要设置 `KEYRING_PASSWORD_FILE`
+- `./start_validator_node.sh start` 会应用 `validator-min` 配置：激进状态裁剪、`tx_index=null`、`discard_abci_responses=true`，并只保留本机 CometBFT RPC，以压低验证者磁盘占用
 - 如需导入已有验证者账户，可设置 `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt`
 - 当前公开主网验证者流程会将 Cosmos 质押交易的 `GAS_PRICES` 默认设为 `1000000000aaxon`，用于 `create-validator` 等交易；如果后续链上手续费门槛变化，请显式覆盖 `GAS_PRICES`
 - `./start_validator_node.sh create-validator` 需要账户已充值、已设置 `KEYRING_PASSWORD_FILE`，并提供可访问的本机或自托管 `COMETBFT_RPC`，例如 `http://127.0.0.1:26657`；如果使用本地 validator RPC 示例，必须先在另一个终端运行 `./start_validator_node.sh start`
 - `./start_validator_node.sh start` 只负责启动本地验证者节点进程
+- `./start_sync_node.sh` 默认使用 `SYNC_NODE_PROFILE=rpc-30d`，保留约 30 天状态和区块历史以服务公网 RPC/API，同时保留交易索引
+- `SYNC_NODE_PROFILE=archive ./start_sync_node.sh` 可用于保留全量历史的公开查询节点
+- `SYNC_NODE_PROFILE=p2p ./start_sync_node.sh` 可用于仅做公网 P2P 入口、不暴露 JSON-RPC / REST / gRPC 的节点
 - `./start_validator_node.sh status` 和 `./start_sync_node.sh status` 会基于当前目录下官方 `data/` 运行路径报告状态，运维时应优先使用这两个命令，而不是任何旧的外部状态辅助脚本
 - `packaging/package_axond.sh` 生成的 release 包会直接包含 `axond`、两个启动脚本、`genesis.json` 和 `bootstrap_peers.txt`
 - 节点默认服务端口统一为：`P2P 26656`、`CometBFT RPC 26657`、`JSON-RPC 8545`、`REST API 1317`、`gRPC 9090`

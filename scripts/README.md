@@ -24,6 +24,8 @@ Validator-specific behavior:
 - set `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt` when importing an existing validator account
 - `./start_validator_node.sh init` initializes `./data/node`, creates or imports the validator account, prints a newly generated mnemonic once to stdout, and writes `./data/validator.address`, `./data/validator.valoper`, `./data/validator.consensus_pubkey.json`, and `./data/peer_info.txt`
 - the public mainnet validator script defaults `GAS_PRICES` to `1000000000aaxon` for Cosmos staking transactions; override it explicitly if the chain fee floor changes
+- `./start_validator_node.sh start` applies the `validator-min` profile: aggressive state pruning, `tx_index=null`, `discard_abci_responses=true`, and JSON-RPC / REST / gRPC disabled for minimal disk growth
+- CometBFT RPC stays bound to `127.0.0.1` by default so local validator operations still work
 - `./start_validator_node.sh start` starts the local validator node process
 - `./start_validator_node.sh status` reads the current official runtime paths under `./data/` and reports process/PID/home/log state
 - `./start_validator_node.sh stop` stops the locally started validator node process
@@ -33,6 +35,9 @@ Sync-node behavior:
 
 - initializes `./data/node`
 - writes `./data/peer_info.txt`
+- defaults to `SYNC_NODE_PROFILE=rpc-30d`, which retains about 30 days of state/block history and keeps the query interfaces needed for public RPC/API service
+- supports `SYNC_NODE_PROFILE=archive` for full retained history
+- supports `SYNC_NODE_PROFILE=p2p` for public P2P ingress only without JSON-RPC / REST / gRPC exposure
 - `./start_sync_node.sh status` reads the current official runtime paths under `./data/` and reports process/PID/home/log state
 - `./start_sync_node.sh stop` stops the locally started sync node process
 
@@ -44,3 +49,10 @@ Default local node service ports:
 - `JSON-RPC WS 8546`
 - `REST API 1317`
 - `gRPC 9090`
+
+Profile notes:
+
+- `validator-min` exposes only P2P plus local CometBFT RPC
+- `rpc-30d` is the default sync-node profile for public RPC/API service
+- `archive` exposes the same service surface while keeping full history
+- `p2p` is optimized for peer ingress and does not expose JSON-RPC / REST / gRPC

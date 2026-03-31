@@ -28,7 +28,7 @@ The protocol is built on Cosmos SDK, CometBFT, and the official `github.com/cosm
 
 ### Local Node Default Ports
 
-These are the default listening ports exposed by a local validator or sync node in the current codebase.
+These are the standard service ports used when a node profile enables the corresponding service.
 
 | Service | Default Local Address | Notes |
 |------|-------|-------|
@@ -397,6 +397,13 @@ cd /opt/axon-node
 ./start_sync_node.sh
 ```
 
+Archive sync node example:
+
+```bash
+cd /opt/axon-node
+SYNC_NODE_PROFILE=archive ./start_sync_node.sh
+```
+
 ```bash
 cd /opt/axon-node
 KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init
@@ -428,9 +435,6 @@ docker run --rm -it \
   -w /opt/axon-node \
   -p 26656:26656 \
   -p 26657:26657 \
-  -p 8545:8545 \
-  -p 1317:1317 \
-  -p 9090:9090 \
   --entrypoint bash \
   debian:trixie-slim \
   -lc 'apt-get update && apt-get install -y --no-install-recommends ca-certificates curl python3 procps coreutils && KEYRING_PASSWORD_FILE=/opt/axon-node/keyring.pass ./start_validator_node.sh init'
@@ -451,10 +455,14 @@ Runtime behavior:
 - set `P2P_EXTERNAL_ADDRESS=host:26656` only on publicly reachable nodes that should accept inbound P2P connections
 - `./start_validator_node.sh init` creates or imports the validator account, prints a newly generated mnemonic once to stdout, and writes `data/validator.address`, `data/validator.valoper`, `data/validator.consensus_pubkey.json`, and `data/peer_info.txt`
 - the default validator flow uses `KEYRING_BACKEND=file`; set `KEYRING_PASSWORD_FILE` to a local passphrase file before running validator commands
+- `./start_validator_node.sh start` applies the `validator-min` profile for the smallest practical disk footprint: aggressive state pruning, `tx_index=null`, `discard_abci_responses=true`, and only local CometBFT RPC enabled
 - set `MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt` when importing an existing validator account instead of generating a new one
 - the public mainnet validator flow defaults `GAS_PRICES` to `1000000000aaxon` for Cosmos staking transactions such as `create-validator`; override `GAS_PRICES` explicitly if the chain fee floor changes later
 - `./start_validator_node.sh create-validator` requires a funded account, `KEYRING_PASSWORD_FILE`, and a reachable self-hosted `COMETBFT_RPC` endpoint such as `http://127.0.0.1:26657`; if you use the local validator RPC example, `./start_validator_node.sh start` must already be running in another terminal
 - `./start_validator_node.sh start` only starts the local validator node process
+- `./start_sync_node.sh` defaults to `SYNC_NODE_PROFILE=rpc-30d`, which keeps roughly 30 days of state and block history for public RPC/API service while retaining tx indexing
+- `SYNC_NODE_PROFILE=archive ./start_sync_node.sh` keeps full history for archive-style public query service
+- `SYNC_NODE_PROFILE=p2p ./start_sync_node.sh` creates a public P2P ingress node without JSON-RPC / REST / gRPC exposure
 - `./start_validator_node.sh status` and `./start_sync_node.sh status` report state from the official current-directory runtime paths under `data/`, so operators should prefer these commands over any older external status helper scripts
 - the release bundle produced by `packaging/package_axond.sh` already contains `axond`, both scripts, `genesis.json`, and `bootstrap_peers.txt`
 - the default node service port set is `P2P 26656`, `CometBFT RPC 26657`, `JSON-RPC 8545`, `REST API 1317`, `gRPC 9090`

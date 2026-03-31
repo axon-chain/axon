@@ -32,6 +32,8 @@ KEYRING_BACKEND="${KEYRING_BACKEND:-file}"
 KEYRING_PASSWORD_FILE="${KEYRING_PASSWORD_FILE:-}"
 MNEMONIC_SOURCE_FILE="${MNEMONIC_SOURCE_FILE:-}"
 COMETBFT_RPC="${COMETBFT_RPC:-}"
+VALIDATOR_RPC_BIND_HOST="${VALIDATOR_RPC_BIND_HOST:-127.0.0.1}"
+VALIDATOR_RPC_LADDR=""
 
 AXOND_DOWNLOAD_URL_LINUX_AMD64="${AXOND_DOWNLOAD_URL_LINUX_AMD64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_amd64}"
 AXOND_DOWNLOAD_URL_LINUX_ARM64="${AXOND_DOWNLOAD_URL_LINUX_ARM64:-https://github.com/axon-chain/axon/releases/latest/download/axond_linux_arm64}"
@@ -231,13 +233,16 @@ PYEOF
 configure_runtime_files() {
     local persistent_peers="$1"
 
+    [ -f "$HOME_DIR/config/app.toml" ] || die "missing generated app.toml at $HOME_DIR/config/app.toml after init"
+    [ -f "$HOME_DIR/config/config.toml" ] || die "missing generated config.toml at $HOME_DIR/config/config.toml after init"
+
     python3 - \
         "$HOME_DIR/config/app.toml" \
         "$HOME_DIR/config/config.toml" \
         "$MIN_GAS_PRICES" \
         "$persistent_peers" \
         "$P2P_EXTERNAL_ADDRESS" \
-        "$RPC_PORT" \
+        "$VALIDATOR_RPC_LADDR" \
         "$JSON_RPC_ADDRESS" \
         "$JSON_RPC_WS_ADDRESS" \
         "$API_ADDRESS" \
@@ -251,7 +256,7 @@ config_path = Path(sys.argv[2])
 minimum_gas_prices = sys.argv[3]
 persistent_peers = sys.argv[4]
 external_address = sys.argv[5]
-rpc_port = sys.argv[6]
+rpc_laddr = sys.argv[6]
 json_rpc_address = sys.argv[7]
 json_rpc_ws_address = sys.argv[8]
 api_address = sys.argv[9]
@@ -279,22 +284,32 @@ def replace_section_bool(text: str, section: str, key: str, value: bool) -> str:
         raise SystemExit(f"failed to update [{section}] {key}")
     return updated
 
+def replace_root_int(text: str, key: str, value: int) -> str:
+    pattern = rf'(^\s*{re.escape(key)}\s*=\s*)[0-9]+'
+    updated, count = re.subn(pattern, lambda item: f'{item.group(1)}{value}', text, count=1, flags=re.MULTILINE)
+    if count != 1:
+        raise SystemExit(f"failed to update root int {key}")
+    return updated
+
 app_text = app_path.read_text(encoding="utf-8")
 app_text = replace_root_value(app_text, "minimum-gas-prices", minimum_gas_prices)
-app_text = replace_section_bool(app_text, "api", "enable", True)
-app_text = replace_section_bool(app_text, "api", "swagger", False)
-app_text = replace_section_value(app_text, "api", "address", api_address)
-app_text = replace_section_bool(app_text, "grpc", "enable", True)
-app_text = replace_section_value(app_text, "grpc", "address", grpc_address)
-app_text = replace_section_bool(app_text, "json-rpc", "enable", True)
-app_text = replace_section_value(app_text, "json-rpc", "address", json_rpc_address)
-app_text = replace_section_value(app_text, "json-rpc", "ws-address", json_rpc_ws_address)
+app_text = replace_root_value(app_text, "pruning", "everything")
+app_text = replace_root_value(app_text, "pruning-keep-recent", "0")
+app_text = replace_root_value(app_text, "pruning-interval", "10")
+app_text = replace_root_int(app_text, "min-retain-blocks", 0)
+app_text = replace_section_bool(app_text, "api", "enable", False)
+app_text = replace_section_bool(app_text, "grpc", "enable", False)
+app_text = replace_section_bool(app_text, "grpc-web", "enable", False)
+app_text = replace_section_bool(app_text, "json-rpc", "enable", False)
+app_text = replace_section_bool(app_text, "json-rpc", "enable-indexer", False)
 app_path.write_text(app_text, encoding="utf-8")
 
 config_text = config_path.read_text(encoding="utf-8")
 config_text = replace_root_value(config_text, "external_address", external_address)
 config_text = replace_root_value(config_text, "persistent_peers", persistent_peers)
-config_text = replace_root_value(config_text, "laddr", f"tcp://0.0.0.0:{rpc_port}")
+config_text = replace_root_value(config_text, "laddr", rpc_laddr)
+config_text = replace_section_bool(config_text, "storage", "discard_abci_responses", True)
+config_text = replace_section_value(config_text, "tx_index", "indexer", "null")
 config_path.write_text(config_text, encoding="utf-8")
 PYEOF
 }
@@ -500,6 +515,7 @@ print_init_summary() {
     echo "  Consensus pubkey:  $CONSENSUS_PUBKEY_FILE"
     echo "  Keyring backend:   $KEYRING_BACKEND"
     echo "  Peer:              $(cat "$PEER_INFO_FILE")"
+    echo "  Storage profile:   validator-min"
     echo
     echo "Next steps:"
     echo "  1. Store the mnemonic offline if a new account was generated."
@@ -602,7 +618,7 @@ start_node() {
         --minimum-gas-prices "$MIN_GAS_PRICES" \
         --p2p.laddr "tcp://0.0.0.0:${P2P_PORT}" \
         --p2p.persistent_peers "$(bootstrap_peers_value)" \
-        --rpc.laddr "tcp://0.0.0.0:${RPC_PORT}"
+        --rpc.laddr "$VALIDATOR_RPC_LADDR"
     )
 
     if [ -n "$P2P_EXTERNAL_ADDRESS" ]; then
@@ -629,6 +645,7 @@ command_start() {
     echo "  Validator address: $(cat "$VALOPER_FILE")"
     echo "  Peer:              $(cat "$PEER_INFO_FILE")"
     echo "  Bootstrap:         $(bootstrap_peers_value)"
+    echo "  Storage profile:   validator-min"
     echo
 
     stop_existing_node
@@ -675,10 +692,13 @@ Optional:
   - set MNEMONIC_SOURCE_FILE=/path/to/mnemonic.txt to import an existing validator account
   - override GAS_PRICES when the chain's Cosmos tx fee floor changes; the mainnet default is 1000000000aaxon
   - set P2P_EXTERNAL_ADDRESS=host:26656 only on publicly reachable nodes
+  - CometBFT RPC binds to 127.0.0.1 by default; override VALIDATOR_RPC_BIND_HOST only if you really need remote access
+  - the validator start profile disables JSON-RPC / REST / gRPC and applies aggressive pruning for minimal disk usage
 EOF
 }
 
 COMMAND="${1:-help}"
+VALIDATOR_RPC_LADDR="tcp://${VALIDATOR_RPC_BIND_HOST}:${RPC_PORT}"
 
 case "$COMMAND" in
     init)

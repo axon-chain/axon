@@ -174,10 +174,59 @@ func registerRuntimeAPIDocs(apiSvr *api.Server) {
 	if err != nil {
 		panic(err)
 	}
+	registerAPIIndexRoutes(apiSvr.Router)
 	registerDocsSiteRoutes(apiSvr.Router, spec, generatedSection)
 	if err := registerDocsSwaggerUI(apiSvr.Router, spec); err != nil {
 		panic(err)
 	}
+}
+
+func registerAPIIndexRoutes(router *mux.Router) {
+	writeIndex := func(w http.ResponseWriter, payload any) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(payload)
+	}
+
+	publicIndex := func(w http.ResponseWriter, r *http.Request) {
+		origin := requestOrigin(r)
+		writeIndex(w, map[string]any{
+			"name":        "Axon Public API",
+			"base_path":   publicAPIRoot + "/",
+			"docs_url":    origin + "/docs/",
+			"openapi_url": origin + "/docs/openapi.json",
+			"entrypoints": []string{
+				publicAPIRoot + "/chain/info",
+				publicAPIRoot + "/chain/status",
+				publicAPIRoot + "/blocks/latest",
+				publicAPIRoot + "/txs/recent",
+				publicAPIRoot + "/validators",
+				publicAPIRoot + "/agents",
+				publicAPIRoot + "/search",
+			},
+		})
+	}
+
+	agentIndex := func(w http.ResponseWriter, r *http.Request) {
+		origin := requestOrigin(r)
+		writeIndex(w, map[string]any{
+			"name":        "Axon Agent API",
+			"base_path":   "/axon/agent/v1/",
+			"docs_url":    origin + "/docs/",
+			"openapi_url": origin + "/docs/openapi.json",
+			"entrypoints": []string{
+				"/axon/agent/v1/params",
+				"/axon/agent/v1/agents",
+				"/axon/agent/v1/agent/{address}",
+				"/axon/agent/v1/reputation/{address}",
+				"/axon/agent/v1/challenge/current",
+			},
+		})
+	}
+
+	router.HandleFunc(publicAPIRoot, publicIndex).Methods(http.MethodGet)
+	router.HandleFunc(publicAPIRoot+"/", publicIndex).Methods(http.MethodGet)
+	router.HandleFunc("/axon/agent/v1", agentIndex).Methods(http.MethodGet)
+	router.HandleFunc("/axon/agent/v1/", agentIndex).Methods(http.MethodGet)
 }
 
 func registerDocsSiteRoutes(router *mux.Router, spec []byte, generatedSection apiDocsGeneratedSection) {

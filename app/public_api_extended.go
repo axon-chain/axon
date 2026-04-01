@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -27,10 +28,15 @@ import (
 	govv1 "github.com/cosmos/cosmos-sdk/x/gov/types/v1"
 	slashingtypes "github.com/cosmos/cosmos-sdk/x/slashing/types"
 	stakingtypes "github.com/cosmos/cosmos-sdk/x/staking/types"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gorilla/mux"
 
 	agenttypes "github.com/axon-chain/axon/x/agent/types"
 )
+
+const maxRequestBodySize = 2 * 1024 * 1024
+
+var actionTypePattern = regexp.MustCompile(`^[a-zA-Z0-9_./]+$`)
 
 type publicAPITxRequest struct {
 	TxBytes string `json:"tx_bytes"`
@@ -329,6 +335,7 @@ func (p *publicAPI) handleTxs(ctx context.Context, r *http.Request) (any, error)
 }
 
 func (p *publicAPI) handleTxSimulate(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
 	var req publicAPITxRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		p.writeError(w, fmt.Errorf("%w: invalid JSON body", errBadRequest))
@@ -356,6 +363,7 @@ func (p *publicAPI) handleTxSimulate(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *publicAPI) handleTxBroadcast(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBodySize)
 	var req publicAPITxRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		p.writeError(w, fmt.Errorf("%w: invalid JSON body", errBadRequest))
@@ -1170,13 +1178,22 @@ func buildTxFilterQuery(r *http.Request) (string, error) {
 	var clauses []string
 
 	if sender := strings.TrimSpace(r.URL.Query().Get("sender")); sender != "" {
-		clauses = append(clauses, fmt.Sprintf("message.sender='%s'", sender))
+		if !isValidAddress(sender) {
+			return "", fmt.Errorf("%w: invalid sender", errBadRequest)
+		}
+		clauses = append(clauses, fmt.Sprintf("message.sender='%s'", sanitizeQueryStringValue(sender)))
 	}
 	if recipient := strings.TrimSpace(r.URL.Query().Get("recipient")); recipient != "" {
-		clauses = append(clauses, fmt.Sprintf("transfer.recipient='%s'", recipient))
+		if !isValidAddress(recipient) {
+			return "", fmt.Errorf("%w: invalid recipient", errBadRequest)
+		}
+		clauses = append(clauses, fmt.Sprintf("transfer.recipient='%s'", sanitizeQueryStringValue(recipient)))
 	}
 	if txType := strings.TrimSpace(r.URL.Query().Get("type")); txType != "" {
-		clauses = append(clauses, fmt.Sprintf("message.action='%s'", txType))
+		if !isValidActionType(txType) {
+			return "", fmt.Errorf("%w: invalid type", errBadRequest)
+		}
+		clauses = append(clauses, fmt.Sprintf("message.action='%s'", sanitizeQueryStringValue(txType)))
 	}
 	if fromHeight := strings.TrimSpace(r.URL.Query().Get("from_height")); fromHeight != "" {
 		if _, err := strconv.ParseInt(fromHeight, 10, 64); err != nil {
@@ -1194,6 +1211,21 @@ func buildTxFilterQuery(r *http.Request) (string, error) {
 		return "tx.height > 0", nil
 	}
 	return strings.Join(clauses, " AND "), nil
+}
+
+func isValidAddress(value string) bool {
+	if _, err := sdk.AccAddressFromBech32(value); err == nil {
+		return true
+	}
+	return common.IsHexAddress(value)
+}
+
+func isValidActionType(value string) bool {
+	return actionTypePattern.MatchString(value)
+}
+
+func sanitizeQueryStringValue(value string) string {
+	return strings.ReplaceAll(value, "'", "")
 }
 
 func valoperToAccNoErr(valoper string) string {

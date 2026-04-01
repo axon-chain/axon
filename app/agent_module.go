@@ -71,6 +71,11 @@ func (am AgentAppModule) RegisterGRPCGatewayRoutes(clientCtx client.Context, mux
 func (am AgentAppModule) RegisterServices(cfg module.Configurator) {
 	agenttypes.RegisterMsgServer(cfg.MsgServer(), agentkeeper.NewMsgServerImpl(am.keeper))
 	agenttypes.RegisterQueryServer(cfg.QueryServer(), agentkeeper.NewQueryServerImpl(am.keeper))
+	if err := cfg.RegisterMigration(agenttypes.ModuleName, 1, func(ctx sdk.Context) error {
+		return nil
+	}); err != nil {
+		panic(err)
+	}
 }
 
 func (am AgentAppModule) InitGenesis(ctx sdk.Context, cdc codec.JSONCodec, data json.RawMessage) []abci.ValidatorUpdate {
@@ -154,7 +159,7 @@ func (am AgentAppModule) ExportGenesis(ctx sdk.Context, cdc codec.JSONCodec) jso
 	return merged
 }
 
-func (am AgentAppModule) ConsensusVersion() uint64 { return 1 }
+func (am AgentAppModule) ConsensusVersion() uint64 { return 2 }
 
 func (am AgentAppModule) BeginBlock(ctx context.Context) error {
 	sdkCtx := sdk.UnwrapSDKContext(ctx)

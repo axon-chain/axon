@@ -2,7 +2,9 @@ package keeper
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"cosmossdk.io/math"
 	storetypes "cosmossdk.io/store/types"
@@ -188,10 +190,18 @@ func (k Keeper) SubmitL2Report(ctx sdk.Context, reporter, target string, score i
 	baseWeight := baseWeightDec.TruncateInt64()
 
 	evidenceWeight := l2NoEvidenceWeightMillis(params)
-	if evidence != "" {
-		// Simplified: if evidence is provided, give full weight.
-		// Full implementation would verify tx hash existence via EVMKeeper.
-		evidenceWeight = EvidenceWeightValid
+	if !k.IsV110UpgradeActivated(ctx) {
+		// Pre-upgrade: preserve exact v1.0.0 behavior — any non-empty string grants full weight.
+		// Do NOT normalize here; normalization could turn whitespace-only evidence into ""
+		// and produce a different weight, breaking historical replay consensus.
+		if evidence != "" {
+			evidenceWeight = EvidenceWeightValid
+		}
+	} else {
+		evidence = normalizeEvidenceForStorage(evidence)
+		if isValidEvidenceFormat(evidence) && k.HasEvidenceTxHash(ctx, evidence) {
+			evidenceWeight = EvidenceWeightValid
+		}
 	}
 
 	weight := baseWeight * evidenceWeight / 1000
@@ -224,6 +234,34 @@ func (k Keeper) SubmitL2Report(ctx sdk.Context, reporter, target string, score i
 	))
 
 	return nil
+}
+
+func isValidEvidenceFormat(evidence string) bool {
+	normalized, ok := normalizeEvidenceHash(evidence)
+	if !ok {
+		return false
+	}
+	decoded, err := hex.DecodeString(normalized)
+	return err == nil && len(decoded) == commonHashLength
+}
+
+const commonHashLength = 32
+
+func normalizeEvidenceForStorage(evidence string) string {
+	normalized, ok := normalizeEvidenceHash(evidence)
+	if !ok {
+		return strings.TrimSpace(evidence)
+	}
+	return normalized
+}
+
+func normalizeEvidenceHash(evidence string) (string, bool) {
+	normalized := strings.ToLower(strings.TrimSpace(evidence))
+	normalized = strings.TrimPrefix(normalized, "0x")
+	if len(normalized) != commonHashLength*2 {
+		return "", false
+	}
+	return normalized, true
 }
 
 func (k Keeper) storeL2Report(ctx sdk.Context, r L2Report) {

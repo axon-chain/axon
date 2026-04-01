@@ -135,7 +135,7 @@ func (p Precompile) submitReport(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 
 	reason, _ := args[3].(string)
 
-	caller := sdk.AccAddress(evm.TxContext.Origin.Bytes())
+	caller := sdk.AccAddress(resolveReportSender(ctx, evm, contract, p.keeper).Bytes())
 	target := sdk.AccAddress(targetAddr.Bytes())
 
 	evidenceHex := ""
@@ -148,6 +148,29 @@ func (p Precompile) submitReport(ctx sdk.Context, evm *vm.EVM, contract *vm.Cont
 	}
 
 	return method.Outputs.Pack()
+}
+
+func resolveReportSender(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, agentKeeper keeper.Keeper) common.Address {
+	if !agentKeeper.IsV110UpgradeActivated(ctx) {
+		if evm != nil && evm.Origin != (common.Address{}) {
+			return evm.Origin
+		}
+		if contract != nil {
+			return contract.Caller()
+		}
+		return common.Address{}
+	}
+
+	if contract != nil {
+		caller := contract.Caller()
+		if caller != (common.Address{}) {
+			return caller
+		}
+	}
+	if evm != nil && evm.Origin != (common.Address{}) {
+		return evm.Origin
+	}
+	return common.Address{}
 }
 
 func (p Precompile) getContractReputation(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {

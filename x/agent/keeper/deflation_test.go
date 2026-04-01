@@ -84,7 +84,7 @@ func TestCheatDetectionDuplicateAnswers(t *testing.T) {
 		{ValidatorAddress: "axon1ddd", CommitHash: "hash4", RevealData: "RAFT"},
 	}
 
-	cheaters := keeper.DetectCheatersForTest(k, responses)
+	cheaters := keeper.DetectCheatersForTest(k, responses, "")
 
 	if !cheaters["axon1aaa"] {
 		t.Error("axon1aaa should be flagged as cheater (duplicate normalized answer)")
@@ -112,7 +112,7 @@ func TestCheatDetectionNoDuplicates(t *testing.T) {
 		{ValidatorAddress: "axon1ccc", CommitHash: "hash3", RevealData: "c"},
 	}
 
-	cheaters := keeper.DetectCheatersForTest(k, responses)
+	cheaters := keeper.DetectCheatersForTest(k, responses, "")
 	if len(cheaters) != 0 {
 		t.Errorf("expected 0 cheaters with unique hashes, got %d", len(cheaters))
 	}
@@ -126,7 +126,7 @@ func TestCheatDetectionEmptyRevealIgnored(t *testing.T) {
 		{ValidatorAddress: "axon1bbb", CommitHash: "hash2", RevealData: ""},
 	}
 
-	cheaters := keeper.DetectCheatersForTest(k, responses)
+	cheaters := keeper.DetectCheatersForTest(k, responses, "")
 	if len(cheaters) != 0 {
 		t.Errorf("empty reveals should be ignored, got %d cheaters", len(cheaters))
 	}

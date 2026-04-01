@@ -118,7 +118,7 @@ func (p Precompile) execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 
 	switch method.Name {
 	case RegisterIdentityCommitmentMethod:
-		return p.registerIdentityCommitment(ctx, evm, method, args)
+		return p.registerIdentityCommitment(ctx, evm, contract, method, args)
 	case ProveReputationMethod:
 		return p.proveReputation(ctx, method, args)
 	case ProveCapabilityMethod:
@@ -132,7 +132,7 @@ func (p Precompile) execute(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract,
 	}
 }
 
-func (p Precompile) registerIdentityCommitment(ctx sdk.Context, evm *vm.EVM, method *abi.Method, args []interface{}) ([]byte, error) {
+func (p Precompile) registerIdentityCommitment(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, method *abi.Method, args []interface{}) ([]byte, error) {
 	if len(args) < 1 {
 		return nil, fmt.Errorf("registerIdentityCommitment requires 1 argument")
 	}
@@ -144,7 +144,7 @@ func (p Precompile) registerIdentityCommitment(ctx sdk.Context, evm *vm.EVM, met
 		return nil, fmt.Errorf("identity commitment cannot be zero")
 	}
 
-	caller := evm.TxContext.Origin
+	caller := resolvePrivateIdentitySender(ctx, evm, contract, p.agentKeeper)
 	cosmosAddr := sdk.AccAddress(caller.Bytes())
 
 	agentAddr := cosmosAddr.String()
@@ -169,6 +169,33 @@ func (p Precompile) registerIdentityCommitment(ctx sdk.Context, evm *vm.EVM, met
 	))
 
 	return method.Outputs.Pack()
+}
+
+func resolvePrivateIdentitySender(ctx sdk.Context, evm *vm.EVM, contract *vm.Contract, agentKeeper agentkeeper.Keeper) common.Address {
+	if shouldUseLegacyOriginSender(ctx, agentKeeper) {
+		if evm != nil && evm.Origin != (common.Address{}) {
+			return evm.Origin
+		}
+		if contract != nil {
+			return contract.Caller()
+		}
+		return common.Address{}
+	}
+
+	if contract != nil {
+		caller := contract.Caller()
+		if caller != (common.Address{}) {
+			return caller
+		}
+	}
+	if evm != nil && evm.Origin != (common.Address{}) {
+		return evm.Origin
+	}
+	return common.Address{}
+}
+
+func shouldUseLegacyOriginSender(ctx sdk.Context, agentKeeper agentkeeper.Keeper) bool {
+	return !agentKeeper.IsV110UpgradeActivated(ctx)
 }
 
 func (p Precompile) proveReputation(ctx sdk.Context, method *abi.Method, args []interface{}) ([]byte, error) {

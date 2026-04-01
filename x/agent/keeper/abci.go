@@ -13,12 +13,28 @@ import (
 func (k Keeper) BeginBlocker(ctx sdk.Context) {
 	params := k.GetParams(ctx)
 	blockHeight := ctx.BlockHeight()
+	currentDay := blockHeight / dailyBlockWindow
+	upgradeActive := k.IsV110UpgradeActivated(ctx)
 
 	k.processDoubleSignEvidence(ctx)
 
 	// F5 fix: only do O(1) proposer reward per block; accumulate the rest.
 	k.AccumulateBlockReward(ctx, params)
 	k.MintContributionRewards(ctx)
+
+	if upgradeActive && currentDay > k.GetLastDailyRegCleanupDay(ctx) {
+		if k.cleanupOldDailyRegData(ctx, currentDay) {
+			k.SetLastDailyRegCleanupDay(ctx, currentDay)
+		}
+	}
+	if upgradeActive && blockHeight > evidenceTxRetentionBlocks {
+		cleanupTarget := blockHeight - evidenceTxRetentionBlocks
+		// Evidence recording starts at V110UpgradeHeight; skip cleanup for heights
+		// before that to avoid pointless empty iterator scans every block.
+		if cleanupTarget >= V110UpgradeHeight {
+			k.cleanupEvidenceTxHashes(ctx, cleanupTarget)
+		}
+	}
 
 	if params.EpochLength > 0 && blockHeight > 0 {
 		currentEpoch := uint64(blockHeight) / params.EpochLength
@@ -86,6 +102,10 @@ func (k Keeper) onEpochEnd(ctx sdk.Context) {
 
 	// M5+M6+M7+M8: L2 reputation settlement (reports → anti-cheat → budget → apply)
 	k.SettleL2Reputation(ctx, epoch)
+
+	if k.IsV110UpgradeActivated(ctx) && epoch > 2 {
+		k.cleanupOldEpochData(ctx, epoch-2)
+	}
 
 	// M3: Natural decay for both L1 and L2 (AFTER all gains)
 	k.ApplyReputationDecay(ctx)

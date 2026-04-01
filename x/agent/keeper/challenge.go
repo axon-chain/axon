@@ -243,7 +243,11 @@ func (k Keeper) EvaluateEpochChallenges(ctx sdk.Context, epoch uint64) {
 	expectedHash := getChallengeAnswerHash(challenge)
 	responses := k.GetEpochResponses(ctx, epoch)
 	respondents := make(map[string]bool)
-	cheaters := k.detectCheaters(responses)
+	cheaterExcludeHash := expectedHash
+	if !k.IsV110UpgradeActivated(ctx) {
+		cheaterExcludeHash = ""
+	}
+	cheaters := k.detectCheaters(responses, cheaterExcludeHash)
 
 	for _, resp := range responses {
 		respondents[resp.ValidatorAddress] = true
@@ -290,7 +294,7 @@ func (k Keeper) EvaluateEpochChallenges(ctx sdk.Context, epoch uint64) {
 // detectCheaters flags agents that submitted identical normalized reveal data
 // (the actual answer content). This catches real collusion — agents copying each
 // other's answers — unlike the old commitHash comparison which could never trigger.
-func (k Keeper) detectCheaters(responses []types.AIResponse) map[string]bool {
+func (k Keeper) detectCheaters(responses []types.AIResponse, expectedHash string) map[string]bool {
 	answerGroups := make(map[string][]string)
 
 	for _, resp := range responses {
@@ -302,7 +306,11 @@ func (k Keeper) detectCheaters(responses []types.AIResponse) map[string]bool {
 	}
 
 	cheaters := make(map[string]bool)
-	for _, addrs := range answerGroups {
+	for normalized, addrs := range answerGroups {
+		answerHash := sha256.Sum256([]byte(normalized))
+		if expectedHash != "" && hex.EncodeToString(answerHash[:]) == expectedHash {
+			continue
+		}
 		if len(addrs) >= CheaterAnswerThreshold {
 			for _, addr := range addrs {
 				cheaters[addr] = true

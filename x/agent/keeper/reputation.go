@@ -194,7 +194,7 @@ var oneAxon = new(big.Int).Exp(big.NewInt(10), big.NewInt(18), nil)
 const dailyBlockWindow int64 = 17280 // ~24h at 5s/block
 
 func dailyRegisterKey(address string, day int64) []byte {
-	return []byte("DailyReg/" + address + "/" + string(types.Uint64ToBytes(uint64(day))))
+	return []byte(types.DailyRegKeyPrefix + address + "/" + string(types.Uint64ToBytes(uint64(day))))
 }
 
 func (k Keeper) GetDailyRegisterCount(ctx sdk.Context, address string) uint64 {

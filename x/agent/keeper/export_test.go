@@ -37,8 +37,8 @@ func ReputationBonusPercentForTest(reputation uint64) int64 {
 	return reputationBonusPercent(reputation)
 }
 
-func DetectCheatersForTest(k Keeper, responses []types.AIResponse) map[string]bool {
-	return k.detectCheaters(responses)
+func DetectCheatersForTest(k Keeper, responses []types.AIResponse, expectedHash string) map[string]bool {
+	return k.detectCheaters(responses, expectedHash)
 }
 
 func ContributionRewardCapForTest(poolAmount, agentStake, totalEligibleStake *big.Int) *big.Int {

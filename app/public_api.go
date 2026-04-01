@@ -45,6 +45,7 @@ const (
 	publicAPIRoot                 = "/axon/public/v1"
 	publicAPIDefaultLimit         = 20
 	publicAPIMaxLimit             = 100
+	publicAPIMaxCacheEntries      = 10000
 	publicAPIShortCacheTTL        = 5 * time.Second
 	publicAPIExplorerCacheTTL     = 8 * time.Second
 	publicAPIChainInfoCacheTTL    = 30 * time.Second
@@ -304,8 +305,20 @@ func (p *publicAPI) readCache(key string) (json.RawMessage, time.Time, bool) {
 
 func (p *publicAPI) writeCache(key string, ttl time.Duration, payload json.RawMessage, generatedAt time.Time) {
 	p.cacheMu.Lock()
+	now := time.Now()
+	if len(p.cache) >= publicAPIMaxCacheEntries {
+		for cacheKey, entry := range p.cache {
+			if now.After(entry.expiresAt) {
+				delete(p.cache, cacheKey)
+			}
+		}
+	}
+	if len(p.cache) >= publicAPIMaxCacheEntries {
+		p.cacheMu.Unlock()
+		return
+	}
 	p.cache[key] = publicAPICacheEntry{
-		expiresAt:   time.Now().Add(ttl),
+		expiresAt:   now.Add(ttl),
 		generatedAt: generatedAt,
 		payload:     payload,
 	}

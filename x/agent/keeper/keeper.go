@@ -11,6 +11,8 @@ import (
 	"cosmossdk.io/log/v2"
 	storetypes "cosmossdk.io/store/types"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/cosmos/cosmos-sdk/codec"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 
@@ -24,6 +26,12 @@ type Keeper struct {
 	bankKeeper    types.BankKeeper
 	stakingKeeper types.StakingKeeper
 }
+
+const (
+	mainnetChainID            = "axon_8210-1"
+	V110UpgradeHeight         = int64(259051)
+	evidenceTxRetentionBlocks = dailyBlockWindow
+)
 
 func NewKeeper(
 	cdc codec.BinaryCodec,
@@ -41,6 +49,51 @@ func NewKeeper(
 
 func (k Keeper) StoreKey() storetypes.StoreKey {
 	return k.storeKey
+}
+
+func (k Keeper) IsV110UpgradeActivated(ctx sdk.Context) bool {
+	if ctx.ChainID() != mainnetChainID {
+		return true
+	}
+	return ctx.BlockHeight() >= V110UpgradeHeight
+}
+
+func (k Keeper) RecordEvidenceTxHash(ctx sdk.Context, txHash common.Hash) {
+	if txHash == (common.Hash{}) {
+		return
+	}
+	store := ctx.KVStore(k.storeKey)
+	normalized := strings.ToLower(txHash.Hex()[2:])
+	store.Set([]byte(types.EvidenceTxKeyPrefix+normalized), types.Uint64ToBytes(uint64(ctx.BlockHeight())))
+	heightKey := append([]byte(types.EvidenceTxHeightKeyPrefix), types.Uint64ToBytes(uint64(ctx.BlockHeight()))...)
+	heightKey = append(heightKey, []byte("/"+normalized)...)
+	store.Set(heightKey, []byte{1})
+}
+
+func (k Keeper) HasEvidenceTxHash(ctx sdk.Context, txHash string) bool {
+	normalized, ok := normalizeEvidenceHash(txHash)
+	if !ok {
+		return false
+	}
+	store := ctx.KVStore(k.storeKey)
+	return store.Has([]byte(types.EvidenceTxKeyPrefix + normalized))
+}
+
+func (k Keeper) GetLastDailyRegCleanupDay(ctx sdk.Context) int64 {
+	store := ctx.KVStore(k.storeKey)
+	bz := store.Get([]byte(types.LastDailyRegCleanupDayKey))
+	if bz == nil || len(bz) < 8 {
+		return -1
+	}
+	return int64(types.BytesToUint64(bz))
+}
+
+func (k Keeper) SetLastDailyRegCleanupDay(ctx sdk.Context, day int64) {
+	if day < 0 {
+		return
+	}
+	store := ctx.KVStore(k.storeKey)
+	store.Set([]byte(types.LastDailyRegCleanupDayKey), types.Uint64ToBytes(uint64(day)))
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

@@ -33,6 +33,8 @@ const (
 	WeightContractCalled int64 = 30
 	WeightTxActivity     int64 = 10
 	WeightHighReputation int64 = 10
+
+	maxContributionCounter uint64 = 10000
 )
 
 // MintContributionRewards mints tokens for the contribution pool each block.
@@ -240,10 +242,16 @@ func (k Keeper) calculateContributionScore(ctx sdk.Context, epoch uint64, agent 
 
 	// Contract deployments
 	deploys := k.getCounter(ctx, types.KeyDeployCount(epoch, agent.Address))
+	if k.IsV110UpgradeActivated(ctx) && deploys > maxContributionCounter {
+		deploys = maxContributionCounter
+	}
 	score += int64(deploys) * WeightDeployContract
 
 	// Contracts called by others (popularity)
 	calls := k.getCounter(ctx, types.KeyContractCall(epoch, agent.Address))
+	if k.IsV110UpgradeActivated(ctx) && calls > maxContributionCounter {
+		calls = maxContributionCounter
+	}
 	score += int64(calls) * WeightContractCalled
 
 	// Transaction activity

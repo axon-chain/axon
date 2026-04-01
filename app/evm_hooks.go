@@ -47,6 +47,10 @@ func (h DeployBurnHook) PostTxProcessing(
 	msg core.Message,
 	receipt *ethtypes.Receipt,
 ) error {
+	if h.agentKeeper.IsV110UpgradeActivated(ctx) {
+		h.agentKeeper.RecordEvidenceTxHash(ctx, receipt.TxHash)
+	}
+
 	senderAccAddr := sdk.AccAddress(sender.Bytes())
 	isDeployment := receipt.ContractAddress != (common.Address{})
 

@@ -9,7 +9,6 @@
 - **Upgrade Name**: `v1.1.0`
 - **Mainnet Chain ID**: `axon_8210-1`
 - **Upgrade Height**: `259051` (estimated 2026-04-02 12:00 CST, based on mainnet avg block time 5.39s)
-- **Agent Module ConsensusVersion**: `1` → `2`
 - **Upgrade Type**: consensus-breaking (F1/F2/F3/F5/F8), requires coordinated `software-upgrade` governance proposal
 - **Historical Replay**: all behavior changes are height-gated via `IsV110UpgradeActivated()`; a single v1.1.0 binary correctly replays all pre-upgrade blocks with v1.0.0 semantics
 
@@ -24,6 +23,11 @@ All consensus-breaking changes activate at block 259051. Non-mainnet chains (`ch
 - [F4] Public transaction search API now validates `sender`, `recipient`, and `type` query parameters against format whitelists (`isValidAddress`, `isValidActionType`) and strips single quotes via `sanitizeQueryStringValue` before constructing CometBFT queries.
 - [F6] Public API `simulate` and `broadcast` endpoints now enforce a 2 MB request body limit via `http.MaxBytesReader`.
 - [F7] Public API response cache now enforces a maximum entry count of 10,000 with expired-entry pruning before insertion.
+- Unknown API endpoints now return HTTP 404 instead of gRPC 501 (UNIMPLEMENTED).
+
+### Observability
+- Peer version visibility: each node injects a geth-style client name (`axond/<version>/<os>-<arch>/<go>`) into its CometBFT moniker at startup, making peer software versions visible via p2p handshake.
+- `/chain/status` API now exposes `client_name` and a `peers` array with each peer's `node_id`, `name`, `moniker`, `remote_ip`, `network`, and `is_outbound`.
 
 ### Optimization
 - [F5] Epoch-scoped Agent KV data (Challenge, AIResponse, EpochActivity, DeployCount, ContractCall) is cleaned up 2 epochs after settlement. Stale daily registration counters are cleaned up in batches (max 5,000 per block) to avoid gas spikes on first run. Evidence tx hashes are retained for 1 day (17,280 blocks) and cleaned up with height-indexed lookup.

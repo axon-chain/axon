@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
+	"runtime"
+	"strings"
 
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
@@ -28,6 +31,7 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
+	"github.com/cosmos/cosmos-sdk/version"
 	clientcfg "github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/pruning"
@@ -119,7 +123,14 @@ func NewRootCmd() *cobra.Command {
 			customAppTemplate, customAppConfig := axonconfig.InitAppConfig()
 			customTMConfig := initCometConfig()
 
-			return sdkserver.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, customTMConfig)
+			if err := sdkserver.InterceptConfigsPreRunHandler(cmd, customAppTemplate, customAppConfig, customTMConfig); err != nil {
+				return err
+			}
+
+			// Inject client name into CometBFT moniker so peers can
+			// identify the axond version via p2p handshake.
+			injectClientNameIntoMoniker(cmd)
+			return nil
 		},
 	}
 
@@ -139,6 +150,40 @@ func NewRootCmd() *cobra.Command {
 func initCometConfig() *cmtcfg.Config {
 	cfg := cmtcfg.DefaultConfig()
 	return cfg
+}
+
+// axondClientName builds a geth-style client identifier:
+//
+//	axond/v1.1.0-abc123/linux-amd64/go1.22.1
+func axondClientName() string {
+	v := version.Version
+	if v == "" {
+		v = "dev"
+	}
+	commit := version.Commit
+	if len(commit) > 8 {
+		commit = commit[:8]
+	}
+	if commit != "" {
+		v += "-" + commit
+	}
+	return fmt.Sprintf("axond/%s/%s-%s/%s", v, runtime.GOOS, runtime.GOARCH, runtime.Version())
+}
+
+// injectClientNameIntoMoniker appends the axond client identifier to the
+// CometBFT moniker so that peers can read it from DefaultNodeInfo.Moniker
+// during p2p handshake. The original user-configured moniker is preserved
+// as a prefix.
+func injectClientNameIntoMoniker(cmd *cobra.Command) {
+	serverCtx := sdkserver.GetServerContextFromCmd(cmd)
+	if serverCtx == nil || serverCtx.Config == nil {
+		return
+	}
+	cn := axondClientName()
+	moniker := serverCtx.Config.Moniker
+	if !strings.Contains(moniker, "axond/") {
+		serverCtx.Config.Moniker = moniker + " " + cn
+	}
 }
 
 func initRootCmd(rootCmd *cobra.Command, axonApp *axonapp.AxonApp) {

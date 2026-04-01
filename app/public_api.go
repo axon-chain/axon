@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -104,13 +105,53 @@ type publicAPIChainInfo struct {
 }
 
 type publicAPIChainStatus struct {
-	LatestBlockHeight string    `json:"latest_block_height"`
-	LatestBlockTime   time.Time `json:"latest_block_time"`
-	CatchingUp        bool      `json:"catching_up"`
-	PeerCount         int       `json:"peer_count"`
-	NodeVersion       string    `json:"node_version"`
-	AppVersion        string    `json:"app_version"`
-	TxIndexEnabled    bool      `json:"tx_index_enabled"`
+	LatestBlockHeight string              `json:"latest_block_height"`
+	LatestBlockTime   time.Time           `json:"latest_block_time"`
+	CatchingUp        bool                `json:"catching_up"`
+	ClientName        string              `json:"client_name"`
+	PeerCount         int                 `json:"peer_count"`
+	Peers             []publicAPIPeerInfo `json:"peers"`
+	NodeVersion       string              `json:"node_version"`
+	AppVersion        string              `json:"app_version"`
+	TxIndexEnabled    bool                `json:"tx_index_enabled"`
+}
+
+type publicAPIPeerInfo struct {
+	NodeID     string `json:"node_id"`
+	Name       string `json:"name"`
+	Moniker    string `json:"moniker"`
+	RemoteIP   string `json:"remote_ip"`
+	Network    string `json:"network"`
+	IsOutbound bool   `json:"is_outbound"`
+}
+
+// clientName builds a geth-style client identifier:
+//
+//	axond/v1.1.0-abc123/linux-amd64/go1.22.1
+func clientName() string {
+	v := version.Version
+	if v == "" {
+		v = "dev"
+	}
+	commit := version.Commit
+	if len(commit) > 8 {
+		commit = commit[:8]
+	}
+	if commit != "" {
+		v += "-" + commit
+	}
+	return fmt.Sprintf("axond/%s/%s-%s/%s", v, runtime.GOOS, runtime.GOARCH, runtime.Version())
+}
+
+// parseMonikerClientName splits a moniker that may contain an injected client
+// name suffix. Format: "my-validator axond/v1.1.0/os-arch/goX.Y"
+// Returns (original_moniker, client_name). If no client name is found,
+// client_name is empty.
+func parseMonikerClientName(raw string) (moniker, name string) {
+	if idx := strings.Index(raw, " axond/"); idx >= 0 {
+		return raw[:idx], raw[idx+1:]
+	}
+	return raw, ""
 }
 
 type publicAPIValidatorSummary struct {
@@ -225,6 +266,50 @@ func registerPublicAPIRoutes(apiSvr *api.Server) {
 	router.HandleFunc("/agents", publicAPI.cachedHandler("agents-list", publicAPIAgentListCacheTTL, publicAPI.handleAgents)).Methods(http.MethodGet)
 
 	router.HandleFunc("/search", publicAPI.cachedHandler("search", publicAPISearchCacheTTL, publicAPI.handleSearch)).Methods(http.MethodGet)
+
+	// Rewrite gRPC-gateway 501 (UNIMPLEMENTED) to 404 for unknown paths.
+	apiSvr.Router.Use(rewriteUnimplementedMiddleware)
+}
+
+// rewriteUnimplementedMiddleware intercepts HTTP 501 responses produced by the
+// gRPC-gateway for paths it cannot route and rewrites them to 404.
+func rewriteUnimplementedMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rec := &notImplementedInterceptor{ResponseWriter: w}
+		next.ServeHTTP(rec, r)
+		if rec.suppressed {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = w.Write([]byte(`{"error":"endpoint not found"}`))
+		}
+	})
+}
+
+// notImplementedInterceptor wraps http.ResponseWriter to suppress 501 responses.
+type notImplementedInterceptor struct {
+	http.ResponseWriter
+	suppressed bool
+	committed  bool
+}
+
+func (w *notImplementedInterceptor) WriteHeader(code int) {
+	if code == http.StatusNotImplemented {
+		w.suppressed = true
+		return
+	}
+	w.committed = true
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *notImplementedInterceptor) Write(b []byte) (int, error) {
+	if w.suppressed {
+		return len(b), nil
+	}
+	if !w.committed {
+		w.committed = true
+		w.ResponseWriter.WriteHeader(http.StatusOK)
+	}
+	return w.ResponseWriter.Write(b)
 }
 
 func newPublicAPI(clientCtx client.Context) *publicAPI {
@@ -429,12 +514,24 @@ func (p *publicAPI) handleChainStatus(ctx context.Context, _ *http.Request) (any
 	}
 
 	peerCount := 0
+	var peers []publicAPIPeerInfo
 	if netClient, ok := p.clientCtx.Client.(interface {
 		NetInfo(context.Context) (*cmttypes.ResultNetInfo, error)
 	}); ok {
 		netInfo, netErr := netClient.NetInfo(ctx)
 		if netErr == nil {
 			peerCount = netInfo.NPeers
+			for _, peer := range netInfo.Peers {
+				moniker, name := parseMonikerClientName(peer.NodeInfo.Moniker)
+				peers = append(peers, publicAPIPeerInfo{
+					NodeID:     string(peer.NodeInfo.DefaultNodeID),
+					Name:       name,
+					Moniker:    moniker,
+					RemoteIP:   peer.RemoteIP,
+					Network:    peer.NodeInfo.Network,
+					IsOutbound: peer.IsOutbound,
+				})
+			}
 		}
 	}
 
@@ -442,7 +539,9 @@ func (p *publicAPI) handleChainStatus(ctx context.Context, _ *http.Request) (any
 		LatestBlockHeight: strconv.FormatInt(status.SyncInfo.LatestBlockHeight, 10),
 		LatestBlockTime:   status.SyncInfo.LatestBlockTime,
 		CatchingUp:        status.SyncInfo.CatchingUp,
+		ClientName:        clientName(),
 		PeerCount:         peerCount,
+		Peers:             peers,
 		NodeVersion:       status.NodeInfo.Version,
 		AppVersion:        appVersion,
 		TxIndexEnabled:    status.TxIndexEnabled(),

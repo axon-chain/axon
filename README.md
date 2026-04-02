@@ -211,6 +211,12 @@ MiningPower = sqrt(Stake) × (1 + 1.5 × ln(1 + Reputation) / ln(101))
 
 Total cap 100. L2 anti-cheat includes mutual rating detection (weight x0.1), spam detection (>50 positive reviews zeroed), and epoch budget normalization.
 
+### AI Challenge Rule
+
+- AI challenge correctness is determined only by exact `SHA256(normalizeAnswer(revealData))` match against the single answer hash stored in the challenge pool.
+- `normalizeAnswer(...)` only lowercases ASCII letters and removes spaces, tabs, and newlines. It does not understand synonyms, paraphrases, or semantic equivalence.
+- If three or more validators reveal the same non-canonical normalized answer, that answer group is still treated as colluding wrong answers and is penalized.
+
 ### Block Reward Distribution
 
 | Pool | Share | Distribution Rule |

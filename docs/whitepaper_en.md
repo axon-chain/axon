@@ -1400,7 +1400,8 @@ Reputation security:
 
 AI challenge anti-cheating (v2):
   · Answers SHA-256 hashed, commit-reveal two-phase
-  · Same-answer threshold detection (>50% validators with identical answers triggers review)
+  · Only the single canonical normalized answer hash stored in the challenge pool is treated as correct; semantically similar but differently worded answers are still treated as wrong
+  · Same wrong-answer threshold detection (identical non-canonical answer groups trigger review)
   · Validators flagged as cheating receive L1 reputation -1.0
 ```
 

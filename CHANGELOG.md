@@ -15,7 +15,7 @@
 All consensus-breaking changes activate at block 259051. Non-mainnet chains (`chainID != axon_8210-1`) activate v1.1.0 behavior immediately for testnet convenience.
 
 ### Security Fixes
-- [F1] AI challenge anti-cheat no longer penalizes validators for submitting identical correct answers; collusion detection now only triggers on identical wrong answers. `detectCheaters` accepts an `expectedHash` parameter to skip correct-answer groups post-upgrade.
+- [F1] AI challenge anti-cheat no longer penalizes validators for submitting the exact canonical normalized answer stored in the challenge pool; collusion detection now only triggers on identical non-canonical answers. `detectCheaters` accepts an `expectedHash` parameter and only skips the answer group whose `SHA256(normalizeAnswer(revealData))` exactly matches the stored `expectedHash`.
 - [F2] Private identity (`0x0812`) and reputation report (`0x0807`) precompiles now bind mutations to the immediate contract caller (`contract.Caller()`) after the v1.1.0 upgrade, removing `tx.origin` confused-deputy behavior while preserving historical replay compatibility.
 - [F3] L2 reputation evidence now requires a valid 32-byte transaction hash format and a chain-indexed EVM transaction record before full evidence weight is granted. Evidence normalization is applied only post-upgrade to preserve exact v1.0.0 weight semantics for replay.
 

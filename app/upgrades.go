@@ -19,7 +19,7 @@ func (app AxonApp) RegisterUpgradeHandlers() {
 		UpgradeName,
 		func(ctx context.Context, _ upgradetypes.Plan, fromVM module.VersionMap) (module.VersionMap, error) {
 			sdkCtx := sdk.UnwrapSDKContext(ctx)
-			sdkCtx.Logger().Info("running Axon upgrade handler", "name", UpgradeName, "height", sdkCtx.BlockHeight(), "expected_height", agentkeeper.V110UpgradeHeight)
+			sdkCtx.Logger().Info("running Axon upgrade handler", "name", UpgradeName, "height", sdkCtx.BlockHeight(), "expected_height", agentkeeper.V111UpgradeHeight)
 			return app.ModuleManager.RunMigrations(ctx, app.Configurator(), fromVM)
 		},
 	)

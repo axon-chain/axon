@@ -161,7 +161,7 @@ func (p Precompile) registerIdentityCommitment(ctx sdk.Context, evm *vm.EVM, con
 	}
 
 	p.keeper.RegisterIdentity(ctx, commitment[:])
-	if p.agentKeeper.IsV110UpgradeActivated(ctx) {
+	if p.agentKeeper.IsV111UpgradeActivated(ctx) {
 		p.keeper.SetAgentIdentity(ctx, agentAddr, commitment[:])
 	} else {
 		p.keeper.SetAgentIdentity(ctx, agentAddr, nil)

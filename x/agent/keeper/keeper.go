@@ -30,7 +30,8 @@ type Keeper struct {
 
 const (
 	mainnetChainID            = "axon_8210-1"
-	V110UpgradeHeight         = int64(295500)
+	V110UpgradeHeight         = int64(259051)
+	V111UpgradeHeight         = int64(295500)
 	evidenceTxRetentionBlocks = dailyBlockWindow
 )
 
@@ -61,6 +62,13 @@ func (k Keeper) IsV110UpgradeActivated(ctx sdk.Context) bool {
 		return true
 	}
 	return ctx.BlockHeight() >= V110UpgradeHeight
+}
+
+func (k Keeper) IsV111UpgradeActivated(ctx sdk.Context) bool {
+	if ctx.ChainID() != mainnetChainID {
+		return true
+	}
+	return ctx.BlockHeight() >= V111UpgradeHeight
 }
 
 func (k Keeper) RecordEvidenceTxHash(ctx sdk.Context, txHash common.Hash) {
@@ -102,7 +110,7 @@ func (k Keeper) SetLastDailyRegCleanupDay(ctx sdk.Context, day int64) {
 }
 
 func (k Keeper) shouldFreezeAgentReputationDuringDeregister(ctx sdk.Context, address string) bool {
-	return k.IsV110UpgradeActivated(ctx) && k.HasDeregisterRequest(ctx, address)
+	return k.IsV111UpgradeActivated(ctx) && k.HasDeregisterRequest(ctx, address)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

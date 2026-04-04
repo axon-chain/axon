@@ -176,7 +176,7 @@ func (k Keeper) SubmitL2Report(ctx sdk.Context, reporter, target string, score i
 	if !found {
 		return fmt.Errorf("target not registered")
 	}
-	if k.IsV110UpgradeActivated(ctx) && targetAgent.Status == types.AgentStatus_AGENT_STATUS_SUSPENDED {
+	if k.IsV111UpgradeActivated(ctx) && targetAgent.Status == types.AgentStatus_AGENT_STATUS_SUSPENDED {
 		return fmt.Errorf("target is deregistering")
 	}
 

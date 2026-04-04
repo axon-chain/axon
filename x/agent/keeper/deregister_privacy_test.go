@@ -54,7 +54,7 @@ func TestExecuteDeregisterDeletesPrivacyIdentity(t *testing.T) {
 
 func TestExecuteDeregisterSkipsPrivacyCleanupBeforeUpgrade(t *testing.T) {
 	k, ctx := newL2ReputationTestKeeper(t)
-	ctx = ctx.WithChainID(mainnetChainID).WithBlockHeight(V110UpgradeHeight - 1)
+	ctx = ctx.WithChainID(mainnetChainID).WithBlockHeight(V111UpgradeHeight - 1)
 
 	privacyKeeper := &mockPrivacyKeeper{}
 	k.SetPrivacyKeeper(privacyKeeper)

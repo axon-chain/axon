@@ -10,9 +10,9 @@
 - **Mainnet Chain ID**: `axon_8210-1`
 - **Upgrade Height**: `295500` (estimated 2026-04-04 20:00 CST, based on mainnet avg block time 5.39s)
 - **Upgrade Type**: consensus-breaking (F1/F2/F3/F5/F8/F9), requires coordinated `software-upgrade` governance proposal
-- **Historical Replay**: all behavior changes are height-gated via `IsV110UpgradeActivated()`; a single v1.1.1 binary correctly replays all pre-upgrade blocks with v1.0.0 semantics
+- **Historical Replay**: previously activated v1.1.0 behavior remains gated by `IsV110UpgradeActivated()` at height `259051`; new v1.1.1 behavior is gated separately by `IsV111UpgradeActivated()` at height `295500`
 
-All consensus-breaking changes activate at block 295500. Non-mainnet chains (`chainID != axon_8210-1`) activate v1.1.1 behavior immediately for testnet convenience.
+New v1.1.1 consensus changes activate at block 295500. Non-mainnet chains (`chainID != axon_8210-1`) activate both v1.1.0 and v1.1.1 behavior immediately for testnet convenience.
 
 ### Security Fixes
 - [F1] AI challenge anti-cheat no longer penalizes validators for submitting the exact canonical normalized answer stored in the challenge pool; collusion detection now only triggers on identical non-canonical answers. `detectCheaters` accepts an `expectedHash` parameter and only skips the answer group whose `SHA256(normalizeAnswer(revealData))` exactly matches the stored `expectedHash`.

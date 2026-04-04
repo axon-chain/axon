@@ -31,7 +31,6 @@ import (
 
 	"github.com/cosmos/cosmos-sdk/baseapp"
 	"github.com/cosmos/cosmos-sdk/client"
-	"github.com/cosmos/cosmos-sdk/version"
 	clientcfg "github.com/cosmos/cosmos-sdk/client/config"
 	"github.com/cosmos/cosmos-sdk/client/flags"
 	"github.com/cosmos/cosmos-sdk/client/pruning"
@@ -43,6 +42,7 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	sdktestutil "github.com/cosmos/cosmos-sdk/types/module/testutil"
 	"github.com/cosmos/cosmos-sdk/types/tx/signing"
+	"github.com/cosmos/cosmos-sdk/version"
 	authcmd "github.com/cosmos/cosmos-sdk/x/auth/client/cli"
 	"github.com/cosmos/cosmos-sdk/x/auth/tx"
 	txmodule "github.com/cosmos/cosmos-sdk/x/auth/tx/config"
@@ -154,7 +154,7 @@ func initCometConfig() *cmtcfg.Config {
 
 // axondClientName builds a geth-style client identifier:
 //
-//	axond/v1.1.0-abc123/linux-amd64/go1.22.1
+//	axond/v1.1.1-abc123/linux-amd64/go1.22.1
 func axondClientName() string {
 	v := version.Version
 	if v == "" {

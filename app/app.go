@@ -450,6 +450,7 @@ func NewAxonApp(
 		keys[privacytypes.StoreKey],
 		app.BankKeeper,
 	)
+	app.AgentKeeper.SetPrivacyKeeper(app.PrivacyKeeper)
 
 	app.EVMKeeper = evmkeeper.NewKeeper(
 		appCodec, keys[evmtypes.StoreKey], oKeys[evmtypes.ObjectKey], nonTransientKeys,

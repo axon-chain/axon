@@ -226,9 +226,17 @@ The Agent module logic is overall sound. The int64 overflow risk and hardcoded q
 - ⚠️ **Attention Needed** — `doTransfer` uses `evm.Context.Transfer` to directly manipulate StateDB balances. This bypasses the `x/bank` module, meaning Cosmos-side balance queries may be inconsistent with the EVM side (this is a known architectural characteristic of Cosmos EVM, not specific to Axon).
 - ⚠️ **Attention Needed** — The `data` parameter (`args[3]`) in `executeWallet` is received but not used. Currently only ETH/AXON transfers are supported, not contract call forwarding. If support for contract calls is added in the future, reentrancy and delegatecall security need to be carefully considered.
 
+### 5.4 IPrivateIdentity (0x...0812)
+
+- ✅ **Pass** — Identity commitment registration is restricted to registered Agents, and duplicate registration for the same Agent or the same commitment is rejected.
+- ✅ **Pass** — Starting at the v1.1.1 upgrade height, the chain stores a reverse index (`agent -> commitment`) and clears private-identity state during successful deregistration queue execution. This prevents post-deregistration commitment reuse for identities registered after the upgrade.
+- ✅ **Pass** — Historical replay compatibility is preserved: pre-upgrade registrations keep the legacy one-byte marker format, and deregistration only removes the agent-side marker when old data lacks a reverse index.
+- ⚠️ **Attention Needed** — Legacy commitments created before the upgrade do not contain enough information to reconstruct and delete the original `IdentityKey` entry during deregistration. Those legacy commitments remain queryable unless a dedicated migration is added.
+- ⚠️ **Attention Needed** — The proof semantics still depend on the ZK circuit design and downstream contract usage. The precompile verifies the supplied proof against the registered commitment and public inputs, but it does not by itself enforce how external contracts should interpret time-varying Agent properties.
+
 **Risk Assessment: ⚠️ Medium Risk**
 
-The wallet precompile contract is the most complex security component. The permission model is correctly implemented, but gas pricing and EVM state consistency need external audit verification.
+The wallet precompile contract is the most complex security component. The permission model is correctly implemented, and private-identity lifecycle cleanup now covers post-upgrade registrations, but gas pricing, EVM state consistency, and legacy identity-state migration still need external audit verification.
 
 ---
 

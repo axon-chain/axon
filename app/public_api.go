@@ -127,7 +127,7 @@ type publicAPIPeerInfo struct {
 
 // clientName builds a geth-style client identifier:
 //
-//	axond/v1.1.0-abc123/linux-amd64/go1.22.1
+//	axond/v1.1.1-abc123/linux-amd64/go1.22.1
 func clientName() string {
 	v := version.Version
 	if v == "" {
@@ -144,7 +144,7 @@ func clientName() string {
 }
 
 // parseMonikerClientName splits a moniker that may contain an injected client
-// name suffix. Format: "my-validator axond/v1.1.0/os-arch/goX.Y"
+// name suffix. Format: "my-validator axond/v1.1.1/os-arch/goX.Y"
 // Returns (original_moniker, client_name). If no client name is found,
 // client_name is empty.
 func parseMonikerClientName(raw string) (moniker, name string) {

@@ -12,7 +12,7 @@ import (
 	agentkeeper "github.com/axon-chain/axon/x/agent/keeper"
 )
 
-const UpgradeName = "v1.1.0"
+const UpgradeName = "v1.1.1"
 
 func (app AxonApp) RegisterUpgradeHandlers() {
 	app.UpgradeKeeper.SetUpgradeHandler(

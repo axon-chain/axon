@@ -109,6 +109,9 @@ func (k Keeper) executeDeregister(ctx sdk.Context, address string, params types.
 	k.DeleteDeregisterRequest(ctx, address)
 	k.DeleteAIBonus(ctx, address)
 	k.cleanupAgentEpochData(ctx, address)
+	if k.IsV110UpgradeActivated(ctx) && k.privacyKeeper != nil {
+		k.privacyKeeper.DeleteAgentIdentity(ctx, address)
+	}
 
 	ctx.EventManager().EmitEvent(sdk.NewEvent(
 		"agent_deregistered",

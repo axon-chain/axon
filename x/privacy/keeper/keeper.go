@@ -21,6 +21,8 @@ type Keeper struct {
 	bankKeeper types.BankKeeper
 }
 
+const agentIdentityCommitmentLength = 32
+
 func NewKeeper(cdc codec.BinaryCodec, storeKey storetypes.StoreKey, bk types.BankKeeper) Keeper {
 	return Keeper{cdc: cdc, storeKey: storeKey, bankKeeper: bk}
 }
@@ -302,9 +304,39 @@ func (k Keeper) HasAgentIdentity(ctx sdk.Context, agentAddr string) bool {
 	return store.Has(types.AgentIdentityKey(agentAddr))
 }
 
-func (k Keeper) SetAgentIdentity(ctx sdk.Context, agentAddr string) {
+func (k Keeper) GetAgentIdentityCommitment(ctx sdk.Context, agentAddr string) ([]byte, bool) {
 	store := ctx.KVStore(k.storeKey)
+	bz := store.Get(types.AgentIdentityKey(agentAddr))
+	if len(bz) != agentIdentityCommitmentLength {
+		return nil, false
+	}
+	commitment := make([]byte, len(bz))
+	copy(commitment, bz)
+	return commitment, true
+}
+
+func (k Keeper) SetAgentIdentity(ctx sdk.Context, agentAddr string, commitment []byte) {
+	store := ctx.KVStore(k.storeKey)
+	if len(commitment) == agentIdentityCommitmentLength {
+		stored := make([]byte, len(commitment))
+		copy(stored, commitment)
+		store.Set(types.AgentIdentityKey(agentAddr), stored)
+		return
+	}
 	store.Set(types.AgentIdentityKey(agentAddr), []byte{1})
+}
+
+// DeleteAgentIdentity removes the agent -> identity index and, when available,
+// also deletes the registered commitment. Legacy one-byte marker values are
+// still deleted from the agent index but do not carry enough information to
+// remove the original commitment entry.
+func (k Keeper) DeleteAgentIdentity(ctx sdk.Context, agentAddr string) {
+	store := ctx.KVStore(k.storeKey)
+	key := types.AgentIdentityKey(agentAddr)
+	if commitment, ok := k.GetAgentIdentityCommitment(ctx, agentAddr); ok {
+		store.Delete(types.IdentityKey(commitment))
+	}
+	store.Delete(key)
 }
 
 // --- Verifying Keys ---

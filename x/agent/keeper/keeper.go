@@ -25,11 +25,12 @@ type Keeper struct {
 
 	bankKeeper    types.BankKeeper
 	stakingKeeper types.StakingKeeper
+	privacyKeeper types.PrivacyKeeper
 }
 
 const (
 	mainnetChainID            = "axon_8210-1"
-	V110UpgradeHeight         = int64(259051)
+	V110UpgradeHeight         = int64(295500)
 	evidenceTxRetentionBlocks = dailyBlockWindow
 )
 
@@ -49,6 +50,10 @@ func NewKeeper(
 
 func (k Keeper) StoreKey() storetypes.StoreKey {
 	return k.storeKey
+}
+
+func (k *Keeper) SetPrivacyKeeper(privacyKeeper types.PrivacyKeeper) {
+	k.privacyKeeper = privacyKeeper
 }
 
 func (k Keeper) IsV110UpgradeActivated(ctx sdk.Context) bool {
@@ -94,6 +99,10 @@ func (k Keeper) SetLastDailyRegCleanupDay(ctx sdk.Context, day int64) {
 	}
 	store := ctx.KVStore(k.storeKey)
 	store.Set([]byte(types.LastDailyRegCleanupDayKey), types.Uint64ToBytes(uint64(day)))
+}
+
+func (k Keeper) shouldFreezeAgentReputationDuringDeregister(ctx sdk.Context, address string) bool {
+	return k.IsV110UpgradeActivated(ctx) && k.HasDeregisterRequest(ctx, address)
 }
 
 func (k Keeper) Logger(ctx sdk.Context) log.Logger {

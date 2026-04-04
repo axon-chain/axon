@@ -20,3 +20,7 @@ type StakingKeeper interface {
 	GetValidatorByConsAddr(ctx context.Context, consAddr sdk.ConsAddress) (stakingtypes.Validator, error)
 	GetBondedValidatorsByPower(ctx context.Context) ([]stakingtypes.Validator, error)
 }
+
+type PrivacyKeeper interface {
+	DeleteAgentIdentity(ctx sdk.Context, agentAddr string)
+}

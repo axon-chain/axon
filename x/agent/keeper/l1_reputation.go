@@ -209,6 +209,9 @@ func (k Keeper) ApplyReputationDecay(ctx sdk.Context) {
 
 	k.IterateAgents(ctx, func(agent types.Agent) bool {
 		addr := agent.Address
+		if k.shouldFreezeAgentReputationDuringDeregister(ctx, addr) {
+			return false
+		}
 
 		l1 := k.GetL1Score(ctx, addr)
 		if l1 > l1Cap {
@@ -249,6 +252,10 @@ func parseDecToMillis(s string) (int64, error) {
 // SyncLegacyReputation updates the old agent.Reputation field from L1+L2 for backward compatibility.
 func (k Keeper) SyncLegacyReputation(ctx sdk.Context) {
 	k.IterateAgents(ctx, func(agent types.Agent) bool {
+		if k.shouldFreezeAgentReputationDuringDeregister(ctx, agent.Address) {
+			return false
+		}
+
 		total := k.GetTotalReputation(ctx, agent.Address)
 		legacy := uint64(total / 1000)
 		if legacy > 100 {

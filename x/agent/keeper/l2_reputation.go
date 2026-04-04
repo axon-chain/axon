@@ -172,8 +172,12 @@ func (k Keeper) SubmitL2Report(ctx sdk.Context, reporter, target string, score i
 		return fmt.Errorf("account too new")
 	}
 
-	if _, found := k.GetAgent(ctx, target); !found {
+	targetAgent, found := k.GetAgent(ctx, target)
+	if !found {
 		return fmt.Errorf("target not registered")
+	}
+	if k.IsV110UpgradeActivated(ctx) && targetAgent.Status == types.AgentStatus_AGENT_STATUS_SUSPENDED {
+		return fmt.Errorf("target is deregistering")
 	}
 
 	epoch := k.GetCurrentEpoch(ctx)

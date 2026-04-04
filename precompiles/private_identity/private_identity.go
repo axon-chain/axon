@@ -161,7 +161,11 @@ func (p Precompile) registerIdentityCommitment(ctx sdk.Context, evm *vm.EVM, con
 	}
 
 	p.keeper.RegisterIdentity(ctx, commitment[:])
-	p.keeper.SetAgentIdentity(ctx, agentAddr)
+	if p.agentKeeper.IsV110UpgradeActivated(ctx) {
+		p.keeper.SetAgentIdentity(ctx, agentAddr, commitment[:])
+	} else {
+		p.keeper.SetAgentIdentity(ctx, agentAddr, nil)
+	}
 
 	ctx.EventManager().EmitEvent(sdk.NewEvent(
 		"private_identity_registered",

@@ -5,8 +5,10 @@ pragma solidity ^0.8.20;
 /// @notice Zero-knowledge identity commitments for anonymous Agent attestation.
 ///         Agents register a commitment and then prove properties (reputation,
 ///         capability, stake) without revealing their on-chain address.
+///         Starting with the v1.1.1 upgrade on mainnet, deregistration clears
+///         the registered commitment when reverse-index data is available.
 interface IPrivateIdentity {
-    /// @notice Register an identity commitment (one-time per agent).
+    /// @notice Register an identity commitment (one-time per active agent).
     /// @dev Caller must be a registered Agent via IAgentRegistry.
     function registerIdentityCommitment(bytes32 identityCommitment) external;
 

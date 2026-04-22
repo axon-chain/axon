@@ -14,9 +14,9 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestChallengePoolMinimumSize(t *testing.T) {
-	pool := keeper.GetChallengePoolSize()
-	if len(pool) < 100 {
-		t.Errorf("challenge pool has %d entries, want >= 100", len(pool))
+	pool := keeper.GetChallengeTemplateSize()
+	if pool < 15 {
+		t.Errorf("challenge templates has %d entries, want >= 15", pool)
 	}
 }
 

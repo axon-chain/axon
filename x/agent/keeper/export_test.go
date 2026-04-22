@@ -13,6 +13,14 @@ func GetChallengePoolSize() []struct{} {
 	return make([]struct{}, len(challengePool))
 }
 
+func GetLegacyChallengePoolSize() int {
+	return len(challengePool)
+}
+
+func GetChallengeTemplateSize() int {
+	return len(challengeTemplates)
+}
+
 func NormalizeAnswerForTest(s string) string {
 	return normalizeAnswer(s)
 }

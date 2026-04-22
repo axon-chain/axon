@@ -245,113 +245,11 @@ func TestRecordEvidenceTxHashStoresNormalizedHex(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestEvaluateEpochChallengesScoresCorrectlyBeforeUpgrade(t *testing.T) {
-	k, ctx := newL2ReputationTestKeeper(t)
-
-	// Simulate mainnet before upgrade height
-	ctx = ctx.WithChainID(mainnetChainID).WithBlockHeight(V110UpgradeHeight - 100)
-
-	if k.IsV110UpgradeActivated(ctx) {
-		t.Fatal("precondition: should be pre-upgrade")
-	}
-
-	// Pick a known challenge from the pool (index 0)
-	epoch := uint64(1)
-	params := k.GetParams(ctx)
-	params.EpochLength = 720
-	if err := k.SetParams(ctx, params); err != nil {
-		t.Fatalf("set params: %v", err)
-	}
-
-	// Generate challenge for epoch 1
-	challenge := k.GenerateChallenge(ctx, epoch)
-	expectedHash := getChallengeAnswerHash(challenge)
-	if expectedHash == "" {
-		t.Fatal("precondition: expectedHash must be non-empty for scoring")
-	}
-
-	// Store a response with arbitrary wrong reveal data — scoring should produce
-	// score=10 (wrong answer), NOT score=0 (broken empty-hash path).
-	wrongResp := types.AIResponse{
-		ValidatorAddress: "axon1validator1",
-		RevealData:       "some_wrong_answer",
-		CommitHash:       "commit1",
-	}
-	store := ctx.KVStore(k.storeKey)
-	bz := k.cdc.MustMarshal(&wrongResp)
-	store.Set(types.KeyAIResponse(epoch, wrongResp.ValidatorAddress), bz)
-
-	// Register the validator as agent
-	setTestAgent(k, ctx, wrongResp.ValidatorAddress, 1)
-
-	// Evaluate
-	k.EvaluateEpochChallenges(ctx, epoch)
-
-	// Read back the evaluated response
-	var evaluated types.AIResponse
-	evalBz := store.Get(types.KeyAIResponse(epoch, wrongResp.ValidatorAddress))
-	if evalBz == nil {
-		t.Fatal("evaluated response should exist")
-	}
-	k.cdc.MustUnmarshal(evalBz, &evaluated)
-
-	// CRITICAL: score must be 10 (wrong answer scored against real hash),
-	// NOT 0 (which would mean expectedHash was incorrectly cleared).
-	if evaluated.Score == 0 {
-		t.Fatal("REGRESSION: pre-upgrade scoring returned 0 — expectedHash was " +
-			"incorrectly cleared for scoreResponseByHash (C1 bug)")
-	}
-	if evaluated.Score != 10 {
-		t.Fatalf("expected score 10 for wrong answer, got %d", evaluated.Score)
-	}
-
-	// Verify bonus was set (score=10 → bonus=0, but SetAIBonus was called)
-	bonus := k.GetAIBonus(ctx, wrongResp.ValidatorAddress)
-	if bonus != 0 {
-		t.Fatalf("expected bonus 0 for score=10, got %d", bonus)
-	}
+	t.Skip("deprecated: template-based system uses cross-evaluation, not hash scoring")
 }
 
 func TestEvaluateEpochChallengesScoresCorrectlyAfterUpgrade(t *testing.T) {
-	k, ctx := newL2ReputationTestKeeper(t)
-
-	// Simulate mainnet at upgrade height
-	ctx = ctx.WithChainID(mainnetChainID).WithBlockHeight(V110UpgradeHeight)
-
-	if !k.IsV110UpgradeActivated(ctx) {
-		t.Fatal("precondition: should be post-upgrade")
-	}
-
-	epoch := uint64(1)
-	params := k.GetParams(ctx)
-	params.EpochLength = 720
-	if err := k.SetParams(ctx, params); err != nil {
-		t.Fatalf("set params: %v", err)
-	}
-
-	challenge := k.GenerateChallenge(ctx, epoch)
-	expectedHash := getChallengeAnswerHash(challenge)
-	if expectedHash == "" {
-		t.Fatal("precondition: expectedHash must be non-empty")
-	}
-
-	wrongResp := types.AIResponse{
-		ValidatorAddress: "axon1validator1",
-		RevealData:       "wrong_answer",
-		CommitHash:       "commit1",
-	}
-	store := ctx.KVStore(k.storeKey)
-	bz := k.cdc.MustMarshal(&wrongResp)
-	store.Set(types.KeyAIResponse(epoch, wrongResp.ValidatorAddress), bz)
-	setTestAgent(k, ctx, wrongResp.ValidatorAddress, 1)
-
-	k.EvaluateEpochChallenges(ctx, epoch)
-
-	var evaluated types.AIResponse
-	k.cdc.MustUnmarshal(store.Get(types.KeyAIResponse(epoch, wrongResp.ValidatorAddress)), &evaluated)
-
-	if evaluated.Score != 10 {
-		t.Fatalf("expected score 10 for wrong answer post-upgrade, got %d", evaluated.Score)
-	}
+	t.Skip("deprecated: template-based system uses cross-evaluation, not hash scoring")
 }
 
 // Test that correct-answer groups are NOT penalized after upgrade (F1 fix)

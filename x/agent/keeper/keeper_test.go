@@ -160,9 +160,8 @@ func TestDefaultGenesis(t *testing.T) {
 }
 
 func TestChallengePoolNotEmpty(t *testing.T) {
-	// Verify challenge pool has entries for AI challenge generation
-	if len(keeper.GetChallengePoolSize()) == 0 {
-		t.Error("challenge pool should not be empty")
+	if keeper.GetChallengeTemplateSize() == 0 {
+		t.Error("challenge templates should not be empty")
 	}
 }
 

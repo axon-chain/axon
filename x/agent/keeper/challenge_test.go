@@ -393,3 +393,103 @@ func TestDetectCheatersMixedCorrectAndWrongGroups(t *testing.T) {
 		}
 	}
 }
+
+// ---------------------------------------------------------------------------
+// Template-Based Scoring Tests
+// ---------------------------------------------------------------------------
+
+func TestCalculateLengthScore(t *testing.T) {
+	tests := []struct {
+		length int
+		want   int
+	}{
+		{600, 35},
+		{500, 35},
+		{300, 25},
+		{200, 25},
+		{150, 15},
+		{100, 15},
+		{75, 10},
+		{50, 10},
+		{30, 5},
+		{0, 5},
+	}
+	for _, tt := range tests {
+		got := keeper.CalculateLengthScoreForTest(tt.length)
+		if got != tt.want {
+			t.Errorf("calculateLengthScore(%d) = %d, want %d", tt.length, got, tt.want)
+		}
+	}
+}
+
+func TestCalculateKeywordScore(t *testing.T) {
+	tests := []struct {
+		normalized string
+		wantMin    int
+	}{
+		{"o(n) complexity sorting search tree graph recursive iteration divide conquer", 35},
+		{"array list stack queue hash map tree heap", 25},
+		{"sql index join acid", 15},
+		{"encryption hash", 10},
+		{"random text", 5},
+	}
+	for _, tt := range tests {
+		got := keeper.CalculateKeywordScoreForTest(tt.normalized)
+		if got < tt.wantMin {
+			t.Errorf("calculateKeywordScore(%q) = %d, want >= %d", tt.normalized, got, tt.wantMin)
+		}
+	}
+}
+
+func TestCrossScoresForQualityResponses(t *testing.T) {
+	k, _, _ := setupTestKeeper(t)
+
+	responses := []types.AIResponse{
+		{
+			ValidatorAddress: "axon1aaa",
+			RevealData:       "Binary search has O(log n) time complexity because it divides the search space in half each iteration. This makes it very efficient for sorted arrays. The algorithm compares the target with the middle element and eliminates half of the remaining elements each step.",
+		},
+		{
+			ValidatorAddress: "axon1bbb",
+			RevealData:       "Quick sort has O(n log n) average complexity using divide and conquer. It picks a pivot and partitions the array around it. The worst case is O(n^2) when the pivot is poorly chosen.",
+		},
+		{
+			ValidatorAddress: "axon1ccc",
+			RevealData:       "yes",
+		},
+	}
+
+	scores := keeper.CalculateCrossScoresForTest(k, responses)
+
+	if scores["axon1aaa"] < 50 {
+		t.Errorf("quality response scored too low: %d", scores["axon1aaa"])
+	}
+	if scores["axon1bbb"] < 50 {
+		t.Errorf("quality response scored too low: %d", scores["axon1bbb"])
+	}
+	if scores["axon1ccc"] > 30 {
+		t.Errorf("low quality response scored too high: %d", scores["axon1ccc"])
+	}
+}
+
+func TestCrossScoresEmptyResponses(t *testing.T) {
+	k, _, _ := setupTestKeeper(t)
+
+	responses := []types.AIResponse{
+		{ValidatorAddress: "axon1aaa", RevealData: ""},
+		{ValidatorAddress: "axon1bbb", RevealData: "   "},
+	}
+
+	scores := keeper.CalculateCrossScoresForTest(k, responses)
+
+	if scores["axon1aaa"] != 0 {
+		t.Errorf("empty reveal should score 0, got %d", scores["axon1aaa"])
+	}
+}
+
+func TestChallengeTemplateMinimumCount(t *testing.T) {
+	templates := keeper.GetChallengeTemplateSize()
+	if templates < 15 {
+		t.Errorf("should have at least 15 templates, got %d", templates)
+	}
+}

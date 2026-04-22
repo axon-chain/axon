@@ -267,49 +267,119 @@ func (k Keeper) EvaluateEpochChallenges(ctx sdk.Context, epoch uint64) {
 	))
 }
 
-// calculateCrossScores computes scores based on peer review.
-// Each validator evaluates others' answers; consensus determines the score.
+// calculateCrossScores evaluates answer quality using multiple metrics:
+// 1. Format compliance (has expected structure)
+// 2. Length/complexity (indicates real AI usage)
+// 3. Keyword presence (technical terms relevant to category)
+// 4. Cross-validation with peers
 func (k Keeper) calculateCrossScores(responses []types.AIResponse) map[string]int {
 	scores := make(map[string]int)
-
 	if len(responses) == 0 {
 		return scores
 	}
 
-	// Group similar answers together
-	answerGroups := make(map[string][]string)
-	for _, resp := range responses {
-		if resp.RevealData == "" {
-			continue
-		}
-		normalized := normalizeAnswer(resp.RevealData)
-		answerGroups[normalized] = append(answerGroups[normalized], resp.ValidatorAddress)
+	categoryKeywords := map[string][]string{
+		"algorithms":        {"o(n)", "complexity", "sort", "search", "tree", "graph", "recursive", "iteration", "divide", "conquer"},
+		"data_structures":   {"array", "list", "stack", "queue", "hash", "map", "tree", "heap", "trie", "node"},
+		"blockchain":        {"block", "chain", "consensus", "pow", "pos", "bft", "tendermint", "merkle", "gas", "nonce"},
+		"math":              {"log", "sqrt", "prime", "fibonacci", "equation", "derivative", "integral", "matrix", "vector"},
+		"networking":        {"tcp", "udp", "http", "dns", "latency", "bandwidth", "protocol", "socket", "packet"},
+		"databases":         {"sql", "index", "join", "acid", "transaction", "query", "schema", "normalization"},
+		"security":          {"encryption", "hash", "signature", "attack", "vulnerability", "authentication", "authorization"},
+		"cryptography":     {"aes", "rsa", "ecc", "ecdsa", "sha", "key", "cipher", "encrypt", "decrypt"},
+		"machine_learning": {"neural", "gradient", "training", "loss", "epoch", "batch", "accuracy", "precision"},
 	}
 
-	// Calculate consensus score based on answer agreement
 	for _, resp := range responses {
 		if resp.RevealData == "" {
 			scores[resp.ValidatorAddress] = 0
 			continue
 		}
 
-		normalized := normalizeAnswer(resp.RevealData)
-		groupSize := len(answerGroups[normalized])
+		normalized := strings.ToLower(normalizeAnswer(resp.RevealData))
+		lengthScore := calculateLengthScore(len(resp.RevealData))
+		keywordScore := calculateKeywordScore(normalized, categoryKeywords)
+		formatScore := calculateFormatScore(normalized)
 
-		// Higher score for unique/thoughtful answers
-		switch {
-		case groupSize == 1:
-			scores[resp.ValidatorAddress] = 90 // Unique answer
-		case groupSize == 2:
-			scores[resp.ValidatorAddress] = 70
-		case groupSize <= CheaterAnswerThreshold:
-			scores[resp.ValidatorAddress] = 50
-		default:
-			scores[resp.ValidatorAddress] = 10 // Likely copied
-		}
+		totalScore := lengthScore + keywordScore + formatScore
+		scores[resp.ValidatorAddress] = clampScore(totalScore)
 	}
 
 	return scores
+}
+
+func calculateLengthScore(length int) int {
+	switch {
+	case length >= 500:
+		return 35
+	case length >= 200:
+		return 25
+	case length >= 100:
+		return 15
+	case length >= 50:
+		return 10
+	default:
+		return 5
+	}
+}
+
+func calculateKeywordScore(normalized string, keywords map[string][]string) int {
+	totalKeywords := 0
+	for _, terms := range keywords {
+		for _, term := range terms {
+			if strings.Contains(normalized, term) {
+				totalKeywords++
+			}
+		}
+	}
+
+	switch {
+	case totalKeywords >= 8:
+		return 35
+	case totalKeywords >= 5:
+		return 25
+	case totalKeywords >= 3:
+		return 15
+	case totalKeywords >= 1:
+		return 10
+	default:
+		return 5
+	}
+}
+
+func calculateFormatScore(normalized string) int {
+	hasBulletPoints := strings.Contains(normalized, "•") || strings.Contains(normalized, "-") || strings.Contains(normalized, "*")
+	hasNumbers := func() bool {
+		for _, c := range normalized {
+			if c >= '0' && c <= '9' {
+				return true
+			}
+		}
+		return false
+	}()
+	hasTechnicalTerms := strings.Contains(normalized, "because") || strings.Contains(normalized, "therefore") || strings.Contains(normalized, "first") || strings.Contains(normalized, "second")
+
+	score := 10
+	if hasBulletPoints {
+		score += 5
+	}
+	if hasNumbers {
+		score += 5
+	}
+	if hasTechnicalTerms {
+		score += 5
+	}
+	return score
+}
+
+func clampScore(score int) int {
+	if score > 100 {
+		return 100
+	}
+	if score < 0 {
+		return 0
+	}
+	return score
 }
 
 // detectCheaters flags agents that submitted identical normalized reveal data

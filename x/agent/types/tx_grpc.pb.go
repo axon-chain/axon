@@ -156,6 +156,17 @@ type MsgServer interface {
 	ClaimReducedStake(context.Context, *MsgClaimReducedStake) (*MsgClaimReducedStakeResponse, error)
 	SubmitAIChallengeResponse(context.Context, *MsgSubmitAIChallengeResponse) (*MsgSubmitAIChallengeResponseResponse, error)
 	RevealAIChallengeResponse(context.Context, *MsgRevealAIChallengeResponse) (*MsgRevealAIChallengeResponseResponse, error)
+	RegisterService(context.Context, *MsgRegisterService) (*MsgRegisterServiceResponse, error)
+	UpdateService(context.Context, *MsgUpdateService) (*MsgUpdateServiceResponse, error)
+	DisableService(context.Context, *MsgDisableService) (*MsgDisableServiceResponse, error)
+	CallService(context.Context, *MsgCallService) (*MsgCallServiceResponse, error)
+	CreateTask(context.Context, *MsgCreateTask) (*MsgCreateTaskResponse, error)
+	CancelTask(context.Context, *MsgCancelTask) (*MsgCancelTaskResponse, error)
+	SubmitBid(context.Context, *MsgSubmitBid) (*MsgSubmitBidResponse, error)
+	SelectBid(context.Context, *MsgSelectBid) (*MsgSelectBidResponse, error)
+	CompleteTask(context.Context, *MsgCompleteTask) (*MsgCompleteTaskResponse, error)
+	RegisterTool(context.Context, *MsgRegisterTool) (*MsgRegisterToolResponse, error)
+	CallTool(context.Context, *MsgCallTool) (*MsgCallToolResponse, error)
 	mustEmbedUnimplementedMsgServer()
 }
 

@@ -350,3 +350,186 @@ func generateAgentID(address string, blockHeight int64) string {
 	hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%d", address, blockHeight)))
 	return fmt.Sprintf("agent-%s", hex.EncodeToString(hash[:8]))
 }
+
+func (k msgServer) RegisterService(goCtx context.Context, msg *types.MsgRegisterService) (*types.MsgRegisterServiceResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	serviceId, err := k.HandleRegisterService(
+		ctx,
+		msg.Sender,
+		msg.Name,
+		msg.Description,
+		msg.Capabilities,
+		msg.InputTypes,
+		msg.OutputTypes,
+		msg.PricePerCall,
+		msg.Endpoint,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgRegisterServiceResponse{ServiceId: serviceId}, nil
+}
+
+func (k msgServer) UpdateService(goCtx context.Context, msg *types.MsgUpdateService) (*types.MsgUpdateServiceResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	err := k.HandleUpdateService(
+		ctx,
+		msg.Sender,
+		msg.ServiceId,
+		msg.Name,
+		msg.Description,
+		msg.PricePerCall,
+		msg.Endpoint,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgUpdateServiceResponse{}, nil
+}
+
+func (k msgServer) DisableService(goCtx context.Context, msg *types.MsgDisableService) (*types.MsgDisableServiceResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	err := k.HandleDisableService(ctx, msg.Sender, msg.ServiceId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgDisableServiceResponse{}, nil
+}
+
+func (k msgServer) CallService(goCtx context.Context, msg *types.MsgCallService) (*types.MsgCallServiceResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, senderAddr, types.ModuleName, sdk.NewCoins(msg.Payment)); err != nil {
+		return nil, err
+	}
+
+	outputData, err := k.HandleCallService(ctx, msg.Sender, msg.ServiceId, msg.InputData, msg.Payment)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgCallServiceResponse{OutputData: outputData}, nil
+}
+
+func (k msgServer) CreateTask(goCtx context.Context, msg *types.MsgCreateTask) (*types.MsgCreateTaskResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, senderAddr, types.ModuleName, sdk.NewCoins(msg.Budget)); err != nil {
+		return nil, err
+	}
+
+	taskId, err := k.HandleCreateTask(
+		ctx,
+		msg.Sender,
+		msg.Title,
+		msg.Description,
+		msg.RequiredCapabilities,
+		msg.Budget,
+		msg.DeadlineBlocks,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgCreateTaskResponse{TaskId: taskId}, nil
+}
+
+func (k msgServer) CancelTask(goCtx context.Context, msg *types.MsgCancelTask) (*types.MsgCancelTaskResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	err := k.HandleCancelTask(ctx, msg.Sender, msg.TaskId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgCancelTaskResponse{}, nil
+}
+
+func (k msgServer) SubmitBid(goCtx context.Context, msg *types.MsgSubmitBid) (*types.MsgSubmitBidResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	err := k.HandleSubmitBid(ctx, msg.Sender, msg.TaskId, msg.Proposal, msg.Price)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgSubmitBidResponse{}, nil
+}
+
+func (k msgServer) SelectBid(goCtx context.Context, msg *types.MsgSelectBid) (*types.MsgSelectBidResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	err := k.HandleSelectBid(ctx, msg.Sender, msg.TaskId, msg.AgentAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgSelectBidResponse{}, nil
+}
+
+func (k msgServer) CompleteTask(goCtx context.Context, msg *types.MsgCompleteTask) (*types.MsgCompleteTaskResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	err := k.HandleCompleteTask(ctx, msg.Sender, msg.TaskId, msg.CompletionData)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgCompleteTaskResponse{}, nil
+}
+
+func (k msgServer) RegisterTool(goCtx context.Context, msg *types.MsgRegisterTool) (*types.MsgRegisterToolResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	toolId, err := k.HandleRegisterTool(
+		ctx,
+		msg.Sender,
+		msg.Name,
+		msg.Description,
+		msg.InputSchema,
+		msg.OutputSchema,
+		msg.Price,
+		msg.IsPublic,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgRegisterToolResponse{ToolId: toolId}, nil
+}
+
+func (k msgServer) CallTool(goCtx context.Context, msg *types.MsgCallTool) (*types.MsgCallToolResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := k.bankKeeper.SendCoinsFromAccountToModule(ctx, senderAddr, types.ModuleName, sdk.NewCoins(msg.Payment)); err != nil {
+		return nil, err
+	}
+
+	outputData, err := k.HandleCallTool(ctx, msg.Sender, msg.ToolId, msg.InputData, msg.Payment)
+	if err != nil {
+		return nil, err
+	}
+
+	return &types.MsgCallToolResponse{OutputData: outputData}, nil
+}

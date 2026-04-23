@@ -19,6 +19,17 @@ service Msg {
   rpc ClaimReducedStake(MsgClaimReducedStake) returns (MsgClaimReducedStakeResponse);
   rpc SubmitAIChallengeResponse(MsgSubmitAIChallengeResponse) returns (MsgSubmitAIChallengeResponseResponse);
   rpc RevealAIChallengeResponse(MsgRevealAIChallengeResponse) returns (MsgRevealAIChallengeResponseResponse);
+  rpc RegisterService(MsgRegisterService) returns (MsgRegisterServiceResponse);
+  rpc UpdateService(MsgUpdateService) returns (MsgUpdateServiceResponse);
+  rpc DisableService(MsgDisableService) returns (MsgDisableServiceResponse);
+  rpc CallService(MsgCallService) returns (MsgCallServiceResponse);
+  rpc CreateTask(MsgCreateTask) returns (MsgCreateTaskResponse);
+  rpc CancelTask(MsgCancelTask) returns (MsgCancelTaskResponse);
+  rpc SubmitBid(MsgSubmitBid) returns (MsgSubmitBidResponse);
+  rpc SelectBid(MsgSelectBid) returns (MsgSelectBidResponse);
+  rpc CompleteTask(MsgCompleteTask) returns (MsgCompleteTaskResponse);
+  rpc RegisterTool(MsgRegisterTool) returns (MsgRegisterToolResponse);
+  rpc CallTool(MsgCallTool) returns (MsgCallToolResponse);
 }
 
 message MsgRegister {
@@ -96,5 +107,118 @@ message MsgRevealAIChallengeResponse {
   uint64 epoch = 2;
   string reveal_data = 3;
 }
-
 message MsgRevealAIChallengeResponseResponse {}
+
+message MsgRegisterService {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string name = 2;
+  string description = 3;
+  repeated string capabilities = 4;
+  repeated string input_types = 5;
+  repeated string output_types = 6;
+  cosmos.base.v1beta1.Coin price_per_call = 7 [(gogoproto.nullable) = false];
+  string endpoint = 8;
+}
+message MsgRegisterServiceResponse {
+  string service_id = 1;
+}
+
+message MsgUpdateService {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string service_id = 2;
+  string name = 3;
+  string description = 4;
+  cosmos.base.v1beta1.Coin price_per_call = 5 [(gogoproto.nullable) = false];
+  string endpoint = 6;
+}
+message MsgUpdateServiceResponse {}
+
+message MsgDisableService {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string service_id = 2;
+}
+message MsgDisableServiceResponse {}
+
+message MsgCallService {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string service_id = 2;
+  bytes input_data = 3;
+  cosmos.base.v1beta1.Coin payment = 4 [(gogoproto.nullable) = false];
+}
+message MsgCallServiceResponse {
+  bytes output_data = 1;
+}
+
+message MsgCreateTask {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string title = 2;
+  string description = 3;
+  repeated string required_capabilities = 4;
+  cosmos.base.v1beta1.Coin budget = 5 [(gogoproto.nullable) = false];
+  int64 deadline_blocks = 6;
+}
+message MsgCreateTaskResponse {
+  string task_id = 1;
+}
+
+message MsgCancelTask {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string task_id = 2;
+}
+message MsgCancelTaskResponse {}
+
+message MsgSubmitBid {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string task_id = 2;
+  string proposal = 3;
+  cosmos.base.v1beta1.Coin price = 4 [(gogoproto.nullable) = false];
+}
+message MsgSubmitBidResponse {}
+
+message MsgSelectBid {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string task_id = 2;
+  string agent_address = 3;
+}
+message MsgSelectBidResponse {}
+
+message MsgCompleteTask {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string task_id = 2;
+  string completion_data = 3;
+}
+message MsgCompleteTaskResponse {}
+
+message MsgRegisterTool {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string name = 2;
+  string description = 3;
+  string input_schema = 4;
+  string output_schema = 5;
+  cosmos.base.v1beta1.Coin price = 6 [(gogoproto.nullable) = false];
+  bool is_public = 7;
+}
+message MsgRegisterToolResponse {
+  string tool_id = 1;
+}
+
+message MsgCallTool {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string tool_id = 2;
+  bytes input_data = 3;
+  cosmos.base.v1beta1.Coin payment = 4 [(gogoproto.nullable) = false];
+}
+message MsgCallToolResponse {
+  bytes output_data = 1;
+}

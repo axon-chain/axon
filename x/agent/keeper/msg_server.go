@@ -89,6 +89,7 @@ func (k msgServer) Register(goCtx context.Context, msg *types.MsgRegister) (*typ
 	}
 
 	k.SetAgent(ctx, agent)
+	k.InitAgentStats(ctx, agent.Address)
 	k.BootstrapLegacyReputation(ctx, agent.Address, agent.Reputation)
 	k.IncrementDailyRegisterCount(ctx, msg.Sender)
 
@@ -220,6 +221,12 @@ func (k msgServer) ClaimReducedStake(goCtx context.Context, msg *types.MsgClaimR
 func (k msgServer) SubmitAIChallengeResponse(goCtx context.Context, msg *types.MsgSubmitAIChallengeResponse) (*types.MsgSubmitAIChallengeResponseResponse, error) {
 	ctx := sdk.UnwrapSDKContext(goCtx)
 
+	// Security: validate sender address format
+	senderAddr, err := sdk.AccAddressFromBech32(msg.Sender)
+	if err != nil {
+		return nil, fmt.Errorf("invalid sender address: %w", err)
+	}
+
 	agent, found := k.GetAgent(ctx, msg.Sender)
 	if !found {
 		return nil, types.ErrAgentNotFound
@@ -246,6 +253,16 @@ func (k msgServer) SubmitAIChallengeResponse(goCtx context.Context, msg *types.M
 		return nil, types.ErrAlreadySubmitted
 	}
 
+	// Security: validate commit hash format (should be hex)
+	if len(msg.CommitHash) != 64 {
+		return nil, fmt.Errorf("invalid commit hash length: expected 64, got %d", len(msg.CommitHash))
+	}
+	for _, c := range msg.CommitHash {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return nil, fmt.Errorf("invalid commit hash format: must be hex")
+		}
+	}
+
 	response := types.AIResponse{
 		ValidatorAddress: msg.Sender,
 		Epoch:            msg.Epoch,
@@ -257,6 +274,12 @@ func (k msgServer) SubmitAIChallengeResponse(goCtx context.Context, msg *types.M
 	store.Set(key, bz)
 
 	k.IncrementEpochActivity(ctx, msg.Sender)
+
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		"ai_challenge_commit_submitted",
+		sdk.NewAttribute("sender", senderAddr.String()),
+		sdk.NewAttribute("epoch", fmt.Sprintf("%d", msg.Epoch)),
+	))
 
 	return &types.MsgSubmitAIChallengeResponseResponse{}, nil
 }

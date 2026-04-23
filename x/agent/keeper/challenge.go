@@ -230,6 +230,7 @@ func (k Keeper) EvaluateEpochChallenges(ctx sdk.Context, epoch uint64) {
 
 		if cheaters[resp.ValidatorAddress] {
 			k.penalizeCheater(ctx, resp.ValidatorAddress)
+			k.UpdateChallengeStats(ctx, resp.ValidatorAddress, epoch, -1)
 			resp.Score = -1
 		} else {
 			score := scores[resp.ValidatorAddress]
@@ -237,10 +238,12 @@ func (k Keeper) EvaluateEpochChallenges(ctx sdk.Context, epoch uint64) {
 			k.SetAIBonus(ctx, resp.ValidatorAddress, bonus)
 
 			if score >= 80 {
-				k.UpdateReputation(ctx, resp.ValidatorAddress, 2)
+				k.UpdateReputationWithHistory(ctx, resp.ValidatorAddress, 2, "ai_challenge_excellent")
 			} else if score >= 50 {
-				k.UpdateReputation(ctx, resp.ValidatorAddress, 1)
+				k.UpdateReputationWithHistory(ctx, resp.ValidatorAddress, 1, "ai_challenge_pass")
 			}
+
+			k.UpdateChallengeStats(ctx, resp.ValidatorAddress, epoch, int64(score))
 			resp.Score = int64(score)
 		}
 
@@ -258,6 +261,8 @@ func (k Keeper) EvaluateEpochChallenges(ctx sdk.Context, epoch uint64) {
 		}
 		return false
 	})
+
+	k.RecordChallengeMetrics(ctx, epoch, responses)
 
 	ctx.EventManager().EmitEvent(sdk.NewEvent(
 		"ai_challenge_evaluated",

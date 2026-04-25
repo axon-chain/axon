@@ -30,6 +30,7 @@ service Msg {
   rpc CompleteTask(MsgCompleteTask) returns (MsgCompleteTaskResponse);
   rpc RegisterTool(MsgRegisterTool) returns (MsgRegisterToolResponse);
   rpc CallTool(MsgCallTool) returns (MsgCallToolResponse);
+  rpc SubmitL2Report(MsgSubmitL2Report) returns (MsgSubmitL2ReportResponse);
 }
 
 message MsgRegister {
@@ -222,3 +223,13 @@ message MsgCallTool {
 message MsgCallToolResponse {
   bytes output_data = 1;
 }
+
+message MsgSubmitL2Report {
+  option (cosmos.msg.v1.signer) = "sender";
+  string sender = 1;
+  string target = 2;
+  int32 score = 3;
+  string evidence = 4;
+  string reason = 5;
+}
+message MsgSubmitL2ReportResponse {}

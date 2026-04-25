@@ -1,0 +1,11 @@
+README.md
+setup.py
+axon/__init__.py
+axon/ai_challenge.py
+axon/client.py
+axon/precompiles.py
+axon_sdk.egg-info/PKG-INFO
+axon_sdk.egg-info/SOURCES.txt
+axon_sdk.egg-info/dependency_links.txt
+axon_sdk.egg-info/requires.txt
+axon_sdk.egg-info/top_level.txt

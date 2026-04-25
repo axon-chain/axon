@@ -221,6 +221,35 @@ func (m *MsgCallToolResponse) Reset()         { *m = MsgCallToolResponse{} }
 func (m *MsgCallToolResponse) String() string { return proto.CompactTextString(m) }
 func (*MsgCallToolResponse) ProtoMessage()    {}
 
+type MsgSubmitL2Report struct {
+	Sender   string `protobuf:"bytes,1,opt,name=sender,proto3" json:"sender,omitempty"`
+	Target   string `protobuf:"bytes,2,opt,name=target,proto3" json:"target,omitempty"`
+	Score    int32  `protobuf:"varint,3,opt,name=score,proto3" json:"score,omitempty"`
+	Evidence string `protobuf:"bytes,4,opt,name=evidence,proto3" json:"evidence,omitempty"`
+	Reason   string `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+}
+
+func (m *MsgSubmitL2Report) Reset()         { *m = MsgSubmitL2Report{} }
+func (m *MsgSubmitL2Report) String() string { return proto.CompactTextString(m) }
+func (*MsgSubmitL2Report) ProtoMessage()    {}
+
+func (m *MsgSubmitL2Report) GetSigners() []sdk.AccAddress {
+	if m.Sender == "" {
+		return nil
+	}
+	addr, err := sdk.AccAddressFromBech32(m.Sender)
+	if err != nil {
+		return nil
+	}
+	return []sdk.AccAddress{addr}
+}
+
+type MsgSubmitL2ReportResponse struct{}
+
+func (m *MsgSubmitL2ReportResponse) Reset()         { *m = MsgSubmitL2ReportResponse{} }
+func (m *MsgSubmitL2ReportResponse) String() string { return proto.CompactTextString(m) }
+func (*MsgSubmitL2ReportResponse) ProtoMessage() {}
+
 type QueryServicesRequest struct {
 	Capability   string `protobuf:"bytes,1,opt,name=capability,proto3" json:"capability,omitempty"`
 	AgentAddress string `protobuf:"bytes,2,opt,name=agent_address,json=agentAddress,proto3" json:"agent_address,omitempty"`

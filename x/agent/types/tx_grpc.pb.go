@@ -167,6 +167,7 @@ type MsgServer interface {
 	CompleteTask(context.Context, *MsgCompleteTask) (*MsgCompleteTaskResponse, error)
 	RegisterTool(context.Context, *MsgRegisterTool) (*MsgRegisterToolResponse, error)
 	CallTool(context.Context, *MsgCallTool) (*MsgCallToolResponse, error)
+	SubmitL2Report(context.Context, *MsgSubmitL2Report) (*MsgSubmitL2ReportResponse, error)
 	mustEmbedUnimplementedMsgServer()
 }
 

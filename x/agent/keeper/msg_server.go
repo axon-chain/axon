@@ -533,3 +533,28 @@ func (k msgServer) CallTool(goCtx context.Context, msg *types.MsgCallTool) (*typ
 
 	return &types.MsgCallToolResponse{OutputData: outputData}, nil
 }
+
+func (k msgServer) SubmitL2Report(goCtx context.Context, msg *types.MsgSubmitL2Report) (*types.MsgSubmitL2ReportResponse, error) {
+	ctx := sdk.UnwrapSDKContext(goCtx)
+
+	if msg.Score != 1 && msg.Score != -1 {
+		return nil, fmt.Errorf("invalid score: must be +1 or -1")
+	}
+	if msg.Sender == msg.Target {
+		return nil, fmt.Errorf("cannot self-report")
+	}
+
+	err := k.Keeper.SubmitL2Report(ctx, msg.Sender, msg.Target, int8(msg.Score), msg.Evidence, msg.Reason)
+	if err != nil {
+		return nil, err
+	}
+
+	ctx.EventManager().EmitEvent(sdk.NewEvent(
+		"l2_report_submitted",
+		sdk.NewAttribute("reporter", msg.Sender),
+		sdk.NewAttribute("target", msg.Target),
+		sdk.NewAttribute("score", fmt.Sprintf("%d", msg.Score)),
+	))
+
+	return &types.MsgSubmitL2ReportResponse{}, nil
+}

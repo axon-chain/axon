@@ -42,3 +42,107 @@ message AIResponse {
   int64 score = 5;
   bool evaluated = 6;
 }
+
+enum ServiceStatus {
+  SERVICE_STATUS_UNSPECIFIED = 0;
+  SERVICE_STATUS_ACTIVE = 1;
+  SERVICE_STATUS_PAUSED = 2;
+  SERVICE_STATUS_DISABLED = 3;
+}
+
+message AgentService {
+  string id = 1;
+  string agent_address = 2;
+  string name = 3;
+  string description = 4;
+  repeated string capabilities = 5;
+  repeated string input_types = 6;
+  repeated string output_types = 7;
+  cosmos.base.v1beta1.Coin price_per_call = 8 [(gogoproto.nullable) = false];
+  string endpoint = 9;
+  ServiceStatus status = 10;
+  int64 created_at = 11;
+  uint64 total_calls = 12;
+  uint64 successful_calls = 13;
+  uint64 reputation = 14;
+}
+
+message ServiceCall {
+  string id = 1;
+  string service_id = 2;
+  string caller = 3;
+  string requester = 4;
+  bytes input_data = 5;
+  bytes output_data = 6;
+  int64 completed_at = 7;
+  bool success = 8;
+ cosmos.base.v1beta1.Coin payment = 9 [(gogoproto.nullable) = false];
+}
+
+enum TaskStatus {
+  TASK_STATUS_UNSPECIFIED = 0;
+  TASK_STATUS_OPEN = 1;
+  TASK_STATUS_BIDDING = 2;
+  TASK_STATUS_IN_PROGRESS = 3;
+  TASK_STATUS_COMPLETED = 4;
+  TASK_STATUS_CANCELLED = 5;
+  TASK_STATUS_FAILED = 6;
+}
+
+message TaskRequest {
+  string id = 1;
+  string requester = 2;
+  string title = 3;
+  string description = 4;
+  repeated string required_capabilities = 5;
+  cosmos.base.v1beta1.Coin budget = 6 [(gogoproto.nullable) = false];
+  int64 deadline_block = 7;
+  TaskStatus status = 8;
+  string selected_agent = 9;
+  int64 created_at = 10;
+}
+
+message TaskBid {
+  string task_id = 1;
+  string agent_address = 2;
+  string proposal = 3;
+  cosmos.base.v1beta1.Coin price = 4 [(gogoproto.nullable) = false];
+  int64 submitted_at = 5;
+  bool accepted = 6;
+}
+
+message TaskCompletion {
+  string task_id = 1;
+  string completion_data = 2;
+  int64 completed_at = 3;
+}
+
+enum ToolStatus {
+  TOOL_STATUS_UNSPECIFIED = 0;
+  TOOL_STATUS_ACTIVE = 1;
+  TOOL_STATUS_DISABLED = 2;
+}
+
+message ToolDefinition {
+  string id = 1;
+  string agent_address = 2;
+  string name = 3;
+  string description = 4;
+  string input_schema = 5;
+  string output_schema = 6;
+  cosmos.base.v1beta1.Coin price = 7 [(gogoproto.nullable) = false];
+  bool is_public = 8;
+  ToolStatus status = 9;
+  int64 created_at = 10;
+}
+
+message ToolCall {
+  string call_id = 1;
+  string caller = 2;
+  string tool_id = 3;
+  bytes input_data = 4;
+  bytes output_data = 5;
+  cosmos.base.v1beta1.Coin payment = 6 [(gogoproto.nullable) = false];
+  int64 executed_at = 7;
+  bool success = 8;
+}

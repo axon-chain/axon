@@ -31,6 +31,21 @@ const (
 
 	PendingReduceStakeKeyPrefix = "PendingReduceStake/"
 	LastDailyRegCleanupDayKey   = "LastDailyRegCleanupDay"
+
+	ServiceIdPrefix   = "Service/"
+	ServiceCallPrefix = "ServiceCall/"
+	TaskPrefix        = "Task/"
+	TaskBidPrefix    = "TaskBid/"
+	ToolPrefix       = "Tool/"
+	ToolCallPrefix   = "ToolCall/"
+
+	MaxServiceNameLength       = 64
+	MaxServiceDescriptionLen = 500
+	MaxTaskTitleLength       = 128
+	MaxTaskDescriptionLen    = 2000
+	MaxProposalLength       = 1000
+
+	DefaultTaskDeadlineBlocks = 2880
 )
 
 func KeyPendingReduceStake(address string) []byte {

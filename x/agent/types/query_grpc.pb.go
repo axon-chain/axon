@@ -104,6 +104,14 @@ type QueryServer interface {
 	Agents(context.Context, *QueryAgentsRequest) (*QueryAgentsResponse, error)
 	Reputation(context.Context, *QueryReputationRequest) (*QueryReputationResponse, error)
 	CurrentChallenge(context.Context, *QueryCurrentChallengeRequest) (*QueryCurrentChallengeResponse, error)
+	Services(context.Context, *QueryServicesRequest) (*QueryServicesResponse, error)
+	Service(context.Context, *QueryServiceRequest) (*QueryServiceResponse, error)
+	ServiceCalls(context.Context, *QueryServiceCallsRequest) (*QueryServiceCallsResponse, error)
+	Tasks(context.Context, *QueryTasksRequest) (*QueryTasksResponse, error)
+	Task(context.Context, *QueryTaskRequest) (*QueryTaskResponse, error)
+	TaskBids(context.Context, *QueryTaskBidsRequest) (*QueryTaskBidsResponse, error)
+	Tools(context.Context, *QueryToolsRequest) (*QueryToolsResponse, error)
+	Tool(context.Context, *QueryToolRequest) (*QueryToolResponse, error)
 	mustEmbedUnimplementedQueryServer()
 }
 

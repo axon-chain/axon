@@ -28,6 +28,38 @@ service Query {
   rpc CurrentChallenge(QueryCurrentChallengeRequest) returns (QueryCurrentChallengeResponse) {
     option (google.api.http).get = "/axon/agent/v1/challenge/current";
   }
+
+  rpc Services(QueryServicesRequest) returns (QueryServicesResponse) {
+    option (google.api.http).get = "/axon/agent/v1/services";
+  }
+
+  rpc Service(QueryServiceRequest) returns (QueryServiceResponse) {
+    option (google.api.http).get = "/axon/agent/v1/service/{service_id}";
+  }
+
+  rpc ServiceCalls(QueryServiceCallsRequest) returns (QueryServiceCallsResponse) {
+    option (google.api.http).get = "/axon/agent/v1/service_calls/{service_id}";
+  }
+
+  rpc Tasks(QueryTasksRequest) returns (QueryTasksResponse) {
+    option (google.api.http).get = "/axon/agent/v1/tasks";
+  }
+
+  rpc Task(QueryTaskRequest) returns (QueryTaskResponse) {
+    option (google.api.http).get = "/axon/agent/v1/task/{task_id}";
+  }
+
+  rpc TaskBids(QueryTaskBidsRequest) returns (QueryTaskBidsResponse) {
+    option (google.api.http).get = "/axon/agent/v1/task_bids/{task_id}";
+  }
+
+  rpc Tools(QueryToolsRequest) returns (QueryToolsResponse) {
+    option (google.api.http).get = "/axon/agent/v1/tools";
+  }
+
+  rpc Tool(QueryToolRequest) returns (QueryToolResponse) {
+    option (google.api.http).get = "/axon/agent/v1/tool/{tool_id}";
+  }
 }
 
 message QueryParamsRequest {}
@@ -62,4 +94,76 @@ message QueryCurrentChallengeRequest {}
 
 message QueryCurrentChallengeResponse {
   AIChallenge challenge = 1;
+}
+
+message QueryServicesRequest {
+  string capability = 1;
+  string agent_address = 2;
+  int64 limit = 3;
+}
+
+message QueryServicesResponse {
+  repeated AgentService services = 1;
+}
+
+message QueryServiceRequest {
+  string service_id = 1;
+}
+
+message QueryServiceResponse {
+  AgentService service = 1;
+}
+
+message QueryServiceCallsRequest {
+  string service_id = 1;
+  int64 limit = 2;
+}
+
+message QueryServiceCallsResponse {
+  repeated ServiceCall calls = 1;
+}
+
+message QueryTasksRequest {
+  TaskStatus status = 1;
+  string requester = 2;
+  int64 limit = 3;
+}
+
+message QueryTasksResponse {
+  repeated TaskRequest tasks = 1;
+}
+
+message QueryTaskRequest {
+  string task_id = 1;
+}
+
+message QueryTaskResponse {
+  TaskRequest task = 1;
+}
+
+message QueryTaskBidsRequest {
+  string task_id = 1;
+  int64 limit = 2;
+}
+
+message QueryTaskBidsResponse {
+  repeated TaskBid bids = 1;
+}
+
+message QueryToolsRequest {
+  string agent_address = 1;
+  bool public_only = 2;
+  int64 limit = 3;
+}
+
+message QueryToolsResponse {
+  repeated ToolDefinition tools = 1;
+}
+
+message QueryToolRequest {
+  string tool_id = 1;
+}
+
+message QueryToolResponse {
+  ToolDefinition tool = 1;
 }
